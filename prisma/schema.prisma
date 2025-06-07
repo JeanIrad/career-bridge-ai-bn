@@ -1,0 +1,268 @@
+
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+enum UserRole {
+  ADMIN
+  STUDENT
+  PROFESSOR
+  ALUMNI
+  EMPLOYER
+  OTHER
+}
+model User {
+  clerkId         String?           @unique
+  id              String           @id @default(uuid())
+  email           String           @unique
+  password        String
+  universityId    String?
+  isVerified      Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  lastLogin       DateTime?
+  role            UserRole         @default(STUDENT)
+  profile         Profile?
+  posts           Post[]
+  events          Event[]
+  jobApplications JobApplication[]
+  messages        Message[]
+  companies       Company[]
+  postedJobs      Job[]            @relation("PostedJobs")
+  notifications   Notification[]
+  eventRegistrations EventRegistration[]
+}
+
+
+
+model Profile {
+  id            String       @id @default(uuid())
+  firstName     String
+  lastName      String
+  headline      String?
+  bio           String?
+  avatar        String?
+  contactNumber String?
+  location      String?
+  socialLinks   Json?
+  visibility    Visibility   @default(PUBLIC)
+  user          User         @relation(fields: [userId], references: [id])
+  userId        String       @unique
+  education     Education[]
+  experiences   Experience[]
+  skills        Skill[]
+}
+
+model Education {
+  id          String   @id @default(uuid())
+  institution String
+  degree      String
+  field       String
+  startDate   DateTime
+  endDate     DateTime?
+  grade       String?
+  activities  String[]
+  profile     Profile  @relation(fields: [profileId], references: [id])
+  profileId   String
+}
+
+model Experience {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  startDate   DateTime
+  endDate     DateTime?
+  isCurrent   Boolean  @default(false)
+  location    String
+  skills      String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  profile     Profile  @relation(fields: [profileId], references: [id])
+  profileId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  companyId   String
+}
+
+model Skill {
+  id          String   @id @default(uuid())
+  name        String
+  endorsements Int?
+  profile     Profile  @relation(fields: [profileId], references: [id])
+  profileId   String
+}
+
+model Company {
+  id          String         @id @default(uuid())
+  name        String
+  description String
+  logo        String?
+  website     String?
+  industry    String
+  size        String
+  location    String
+  isVerified  Boolean        @default(false)
+  owner       User           @relation(fields: [ownerId], references: [id])
+  ownerId     String
+  jobs        Job[]
+  experiences Experience[]
+}
+
+model Job {
+  id                  String            @id @default(uuid())
+  title              String
+  description        String
+  requirements       String[]
+  type              String
+  location          String
+  salary            Json
+  applicationDeadline DateTime
+  status            JobStatus          @default(ACTIVE)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  company           Company            @relation(fields: [companyId], references: [id])
+  companyId         String
+  postedBy          User               @relation("PostedJobs", fields: [postedById], references: [id])
+  postedById        String
+  applications      JobApplication[]
+}
+
+model JobApplication {
+  id          String            @id @default(uuid())
+  resumeUrl   String
+  coverLetter String?
+  status      ApplicationStatus @default(PENDING)
+  feedback    String?
+  appliedAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  job         Job               @relation(fields: [jobId], references: [id])
+  jobId       String
+  user        User              @relation(fields: [userId], references: [id])
+  userId      String
+}
+
+model Post {
+  id          String     @id @default(uuid())
+  title       String
+  content     String
+  tags        String[]
+  attachments String[]
+  likes       Int        @default(0)
+  views       Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  forum       Forum      @relation(fields: [forumId], references: [id])
+  forumId     String
+  user        User       @relation(fields: [userId], references: [id])
+  userId      String
+  comments    Comment[]
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  post      Post     @relation(fields: [postId], references: [id])
+  postId    String
+}
+
+model Forum {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  category    String
+  moderators  String[]
+  posts       Post[]
+}
+
+model Event {
+  id                   String             @id @default(uuid())
+  title               String
+  description         String
+  type               String
+  startDate          DateTime
+  endDate            DateTime
+  location           String
+  mode               EventMode
+  capacity           Int
+  registrationDeadline DateTime
+  status             EventStatus         @default(UPCOMING)
+  creator            User                @relation(fields: [creatorId], references: [id])
+  creatorId          String
+  registrations      EventRegistration[]
+}
+
+model EventRegistration {
+  id        String   @id @default(uuid())
+  event     Event    @relation(fields: [eventId], references: [id])
+  eventId   String
+  createdAt DateTime @default(now())
+
+  User User[]
+}
+
+model Chat {
+  id           String    @id @default(uuid())
+  type         String
+  participants String[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  messages     Message[]
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  content   String
+  createdAt DateTime @default(now())
+  chat      Chat     @relation(fields: [chatId], references: [id])
+  chatId    String
+  sender    User     @relation(fields: [senderId], references: [id])
+  senderId  String
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  title     String
+  content   String
+  type      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  link      String?
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+}
+
+enum Visibility {
+  PUBLIC
+  PRIVATE
+  CONNECTIONS
+}
+
+enum JobStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum ApplicationStatus {
+  PENDING
+  REVIEWED
+  ACCEPTED
+  REJECTED
+}
+
+enum EventMode {
+  ONLINE
+  OFFLINE
+  HYBRID
+}
+
+enum EventStatus {
+  UPCOMING
+  ONGOING
+  COMPLETED
+}
