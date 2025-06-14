@@ -6,6 +6,7 @@ import { AuthController } from './auth.controller';
 import { UsersModule } from 'src/users/users.module';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
+import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
   imports: [
@@ -13,11 +14,18 @@ import { AuthService } from './auth.service';
 
     JwtModule.register({
       secret: process.env.JWT_SECRET,
-      signOptions: { expiresIn: '1h' },
+      signOptions: { expiresIn: process.env.JWT_EXPIRATION || '1d' },
     }),
   ],
   controllers: [AuthController],
-  providers: [/* lerkService , AuthGuard,  */ /* SessionGuard */ AuthService],
-  exports: [/* ClerkService, */ /* AuthGuard, SessionGuard*/ /*  */],
+  providers: [
+    /* lerkService , AuthGuard,  */ /* SessionGuard */ AuthService,
+    JwtStrategy,
+  ],
+  exports: [
+    /* ClerkService, */
+    /* AuthGuard, SessionGuard*/
+    /*  */
+  ],
 })
 export class AuthModule {}

@@ -37,7 +37,7 @@ import { LoginDto } from './dto/login.dto';
 import { User } from '@prisma/client';
 
 export interface JwtPayload {
-  sub: string;
+  id: string;
   email: string;
   role: string;
 }
@@ -54,31 +54,21 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async register(registerDto: RegisterDto): Promise<any> {
-    // Check if user already exists
+  async register(
+    registerDto: RegisterDto,
+  ): Promise<{ message: string; user: Omit<User, 'password'> }> {
     const existingUser = await this.usersService.findByEmail(registerDto.email);
     if (existingUser) {
       throw new ConflictException('User with this email already exists');
     }
 
-    // Create new user
     const user = await this.usersService.create(registerDto);
 
-    // Generate JWT token
-    const payload: JwtPayload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-    };
-
-    // const access_token = this.jwtService.sign(payload);
-
-    // Remove password from response
     const { password, ...userWithoutPassword } = user;
 
     return {
+      message: 'User registered successfully',
       user: userWithoutPassword,
-      // access_token,
     };
   }
 
@@ -90,19 +80,18 @@ export class AuthService {
     }
 
     const payload: JwtPayload = {
-      sub: user.id,
+      id: user.id,
       email: user.email,
       role: user.role,
     };
 
     const access_token = this.jwtService.sign(payload);
 
-    // Remove password from response
     const { password, ...userWithoutPassword } = user;
 
     return {
-      user: userWithoutPassword,
       access_token,
+      user: userWithoutPassword,
     };
   }
 
@@ -120,6 +109,6 @@ export class AuthService {
   }
 
   async validateJwtPayload(payload: JwtPayload): Promise<User | null> {
-    return this.usersService.findById(payload.sub);
+    return this.usersService.findById(payload.id);
   }
 }

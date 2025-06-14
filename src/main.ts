@@ -24,29 +24,8 @@ async function bootstrap() {
     .setDescription('Career Bridge AI API')
     .setVersion('1.0')
     .addTag('auth', 'Authentication endpoints')
-    .addBearerAuth(
-      {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        name: 'JWT',
-        description: 'Enter JWT token',
-        in: 'header',
-      },
-      'JWT-auth',
-    )
-    .addCookieAuth(
-      'sessionId',
-      {
-        type: 'apiKey',
-        in: 'cookie',
-        name: 'sessionId',
-        description: 'Session ID cookie',
-      },
-      'session-auth',
-    )
+    .addBearerAuth()
     .addServer('http://localhost:5000', 'Development server')
-    .addServer('https://your-production-url.com', 'Production server')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

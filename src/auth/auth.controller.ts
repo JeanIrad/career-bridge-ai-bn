@@ -143,32 +143,40 @@ import { AuthService, AuthResponse } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt.guard';
+import { User } from '@prisma/client';
+import { CurrentUser } from './decorators/current-user.decorator';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('register')
-  async register(@Body() registerDto: RegisterDto): Promise<AuthResponse> {
-    return this.authService.register(registerDto);
+  async register(
+    @Body()
+    registerDto: RegisterDto,
+  ): Promise<{ message: string; user: Omit<User, 'password'> }> {
+    return await this.authService.register(registerDto);
   }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() loginDto: LoginDto): Promise<AuthResponse> {
-    return this.authService.login(loginDto);
+    return await this.authService.login(loginDto);
   }
 
+  @ApiBearerAuth()
   @Get('profile')
   @UseGuards(JwtAuthGuard)
-  async getProfile(@Request() req): Promise<any> {
-    const { password, ...userWithoutPassword } = req.user;
+  getProfile(@CurrentUser() user: any): any {
+    const { password, ...userWithoutPassword } = user;
     return userWithoutPassword;
   }
-
-  @Get('check')
+  @ApiBearerAuth()
+  @Get('me')
   @UseGuards(JwtAuthGuard)
-  async checkAuth(): Promise<{ message: string }> {
-    return { message: 'Authentication successful' };
+  checkAuth(@CurrentUser() user: any): { user: any } {
+    const { password, ...userWithoutPassword } = user;
+    return { user: userWithoutPassword };
   }
 }
