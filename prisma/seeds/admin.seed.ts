@@ -1,0 +1,38 @@
+import { PrismaClient } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
+
+const prisma = new PrismaClient();
+
+async function main() {
+  const salt = await bcrypt.genSalt();
+  const password = await bcrypt.hash(
+    process.env.ADMIN_PASSWORD || 'admin123',
+    salt,
+  );
+
+  const admin = await prisma.user.upsert({
+    where: { email: 'admin@careerbridge.ai' },
+    update: {},
+    create: {
+      email: 'admin@careerbridge.ai',
+      password: password,
+      role: 'SUPER_ADMIN',
+    },
+  });
+
+  console.log(`super admin user is created: email: ${admin.email}`);
+
+  // Run the complete seed
+  // await completeSeeds()
+  // await seed()
+}
+
+main()
+  .then(async () => {
+    await prisma.$disconnect();
+  })
+  .catch(async (e) => {
+    console.error(e);
+    await prisma.$disconnect();
+    process.exit(1);
+  });

@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Reflector } from '@nestjs/core';
+import { PrismaService } from 'prisma/prisma.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -45,6 +46,8 @@ async function bootstrap() {
       'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui.min.css',
     ],
   });
+  const prismaService = app.get(PrismaService);
+  await prismaService.enableShutdownHooks(app);
   const PORT = process.env.PORT ?? 4000;
   await app.listen(PORT);
 }

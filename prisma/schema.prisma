@@ -15,7 +15,15 @@ enum UserRole {
   ALUMNI
   EMPLOYER
   OTHER
+  SUPER_ADMIN
 }
+
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
 model User {
   clerkId         String?           @unique
   id              String           @id @default(uuid())
@@ -23,6 +31,7 @@ model User {
   password        String
   universityId    String?
   isVerified      Boolean          @default(false)
+  accountStatus   AccountStatus    @default(ACTIVE)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   lastLogin       DateTime?
@@ -36,6 +45,7 @@ model User {
   postedJobs      Job[]            @relation("PostedJobs")
   notifications   Notification[]
   eventRegistrations EventRegistration[]
+  chat              Chat[]
 }
 
 
@@ -213,6 +223,8 @@ model Chat {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   messages     Message[]
+  user         User      @relation(fields: [userId], references: [id])
+  userId       String
 }
 
 model Message {
