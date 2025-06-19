@@ -40,6 +40,13 @@ import {
   VerifyUserDto,
   UpdateAccountStatusDto,
   PaginationDto,
+  SoftDeleteUserDto,
+  HardDeleteUserDto,
+  SelfDeleteAccountDto,
+  CleanupOldUsersDto,
+  DeletedUserResponseDto,
+  HardDeleteResponseDto,
+  CleanupResponseDto,
 } from './dto/user.dto';
 import { UserRole } from '@prisma/client';
 
@@ -515,5 +522,188 @@ export class UsersController {
       success: true,
       data: stats,
     };
+  }
+
+  // ============= USER DELETION OPERATIONS =============
+
+  @Delete('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete own account (self-delete)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Account deleted successfully',
+    type: DeletedUserResponseDto,
+  })
+  @ApiResponse({ status: 403, description: 'Invalid password' })
+  async selfDeleteAccount(
+    @CurrentUser() user: any,
+    @Body() selfDeleteDto: SelfDeleteAccountDto,
+  ) {
+    const result = await this.usersService.selfDeleteAccount(
+      user.id,
+      selfDeleteDto.password,
+      selfDeleteDto.reason,
+    );
+
+    return {
+      success: true,
+      ...result,
+    };
+  }
+
+  @Delete(':userId/soft')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Soft delete a user (Admin only)' })
+  @ApiParam({ name: 'userId', description: 'User ID to delete' })
+  @ApiResponse({
+    status: 200,
+    description: 'User soft deleted successfully',
+    type: DeletedUserResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({ status: 409, description: 'User is already deleted' })
+  async softDeleteUser(
+    @CurrentUser() admin: any,
+    @Param('userId') userId: string,
+    @Body() softDeleteDto: SoftDeleteUserDto,
+  ) {
+    const result = await this.usersService.softDeleteUser(
+      admin.id,
+      userId,
+      softDeleteDto.reason,
+    );
+
+    return {
+      success: true,
+      message: 'User soft deleted successfully',
+      data: result,
+    };
+  }
+
+  @Delete(':userId/hard')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Permanently delete a user (Super Admin only)',
+    description:
+      'This action is irreversible. Requires confirmation code in format: HARD_DELETE_{userId}_{YYYY-MM-DD}',
+  })
+  @ApiParam({ name: 'userId', description: 'User ID to permanently delete' })
+  @ApiResponse({
+    status: 200,
+    description: 'User permanently deleted successfully',
+    type: HardDeleteResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description:
+      'Forbidden - Super Admin access required or invalid confirmation code',
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async hardDeleteUser(
+    @CurrentUser() superAdmin: any,
+    @Param('userId') userId: string,
+    @Body() hardDeleteDto: HardDeleteUserDto,
+  ) {
+    const result = await this.usersService.hardDeleteUser(
+      superAdmin.id,
+      userId,
+      hardDeleteDto.confirmationCode,
+    );
+
+    return result;
+  }
+
+  @Patch(':userId/restore')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Restore a soft-deleted user (Admin only)' })
+  @ApiParam({ name: 'userId', description: 'User ID to restore' })
+  @ApiResponse({
+    status: 200,
+    description: 'User restored successfully',
+    type: DeletedUserResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({ status: 409, description: 'User is not deleted' })
+  async restoreUser(
+    @CurrentUser() admin: any,
+    @Param('userId') userId: string,
+  ) {
+    const result = await this.usersService.restoreUser(admin.id, userId);
+
+    return {
+      success: true,
+      message: 'User restored successfully',
+      data: result,
+    };
+  }
+
+  @Get('admin/deleted')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all deleted users (Admin only)' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiResponse({
+    status: 200,
+    description: 'Deleted users retrieved successfully',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  async getDeletedUsers(
+    @CurrentUser() admin: any,
+    @Query() pagination: PaginationDto,
+  ) {
+    const result = await this.usersService.getDeletedUsers(
+      admin.id,
+      pagination,
+    );
+
+    return {
+      success: true,
+      ...result,
+    };
+  }
+
+  @Post('admin/cleanup')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Cleanup old deleted users (Super Admin only)',
+    description:
+      'Permanently deletes users that have been soft-deleted for specified number of days',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Cleanup completed successfully',
+    type: CleanupResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Super Admin access required',
+  })
+  async cleanupOldDeletedUsers(
+    @CurrentUser() superAdmin: any,
+    @Body() cleanupDto: CleanupOldUsersDto,
+  ) {
+    const result = await this.usersService.cleanupOldDeletedUsers(
+      superAdmin.id,
+      cleanupDto.daysOld,
+    );
+
+    return result;
   }
 }

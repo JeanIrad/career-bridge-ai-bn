@@ -16,6 +16,8 @@ import {
   IsPhoneNumber,
   IsNumber,
   IsObject,
+  IsNotEmpty,
+  MaxLength,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
@@ -656,4 +658,122 @@ export class GetOpportunityRecommendationsDto extends PaginationDto {
   @ValidateNested()
   @Type(() => OpportunityRecommendationDto)
   filters: OpportunityRecommendationDto;
+}
+
+// ============= USER DELETION DTOs =============
+
+export class SoftDeleteUserDto {
+  @ApiProperty({
+    description: 'Reason for deleting the user',
+    example: 'Violation of terms of service',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
+}
+
+export class HardDeleteUserDto {
+  @ApiProperty({
+    description:
+      'Confirmation code for hard delete (format: HARD_DELETE_{userId}_{YYYY-MM-DD})',
+    example: 'HARD_DELETE_123e4567-e89b-12d3-a456-426614174000_2024-01-15',
+  })
+  @IsNotEmpty()
+  @IsString()
+  confirmationCode: string;
+}
+
+export class SelfDeleteAccountDto {
+  @ApiProperty({
+    description: 'Current password for verification',
+    example: 'currentPassword123',
+  })
+  @IsNotEmpty()
+  @IsString()
+  password: string;
+
+  @ApiProperty({
+    description: 'Reason for deleting the account',
+    example: 'No longer need the service',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
+}
+
+export class CleanupOldUsersDto {
+  @ApiProperty({
+    description: 'Number of days old for cleanup (default: 30)',
+    example: 30,
+    default: 30,
+    required: false,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(365)
+  daysOld?: number = 30;
+}
+
+export class DeletedUserResponseDto {
+  @ApiProperty({ example: true })
+  success: boolean;
+
+  @ApiProperty({ example: 'User deleted successfully' })
+  message: string;
+
+  @ApiProperty({
+    description: 'Deleted user data',
+    required: false,
+  })
+  data?: any;
+}
+
+export class HardDeleteResponseDto {
+  @ApiProperty({ example: 'User permanently deleted successfully' })
+  message: string;
+
+  @ApiProperty({
+    description: 'Summary of deleted data',
+    example: {
+      userId: '123e4567-e89b-12d3-a456-426614174000',
+      email: 'user@example.com',
+      role: 'STUDENT',
+      educationRecords: 2,
+      experienceRecords: 1,
+      skillRecords: 5,
+      postsCount: 10,
+      commentsCount: 25,
+      applicationsCount: 3,
+      messagesCount: 50,
+      documentsCount: 4,
+      deletedAt: '2024-01-15T10:30:00Z',
+    },
+  })
+  deletedData: {
+    userId: string;
+    email: string;
+    role: string;
+    educationRecords: number;
+    experienceRecords: number;
+    skillRecords: number;
+    postsCount: number;
+    commentsCount: number;
+    applicationsCount: number;
+    messagesCount: number;
+    documentsCount: number;
+    deletedAt: Date;
+  };
+}
+
+export class CleanupResponseDto {
+  @ApiProperty({ example: 'Cleanup completed. 5 users permanently deleted.' })
+  message: string;
+
+  @ApiProperty({ example: 5 })
+  deletedCount: number;
 }

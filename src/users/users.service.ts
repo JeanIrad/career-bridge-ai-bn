@@ -539,14 +539,13 @@ export class UsersService {
 
   async verifyUser(adminId: string, verifyDto: VerifyUserDto): Promise<User> {
     const admin = await this.findById(adminId);
-    if (
-      !admin ||
-      ![
-        UserRole.ADMIN,
-        UserRole.SUPER_ADMIN,
-        UserRole.UNIVERSITY_STAFF,
-      ].includes(admin.role)
-    ) {
+    const allowedRoles: UserRole[] = [
+      UserRole.ADMIN,
+      UserRole.SUPER_ADMIN,
+      UserRole.UNIVERSITY_STAFF,
+    ];
+
+    if (!admin || !allowedRoles.includes(admin.role)) {
       throw new ForbiddenException('Only admins can verify users');
     }
 
@@ -570,10 +569,9 @@ export class UsersService {
     statusDto: UpdateAccountStatusDto,
   ): Promise<User> {
     const admin = await this.findById(adminId);
-    if (
-      !admin ||
-      ![UserRole.ADMIN, UserRole.SUPER_ADMIN].includes(admin.role)
-    ) {
+    const allowedRoles: UserRole[] = [UserRole.ADMIN, UserRole.SUPER_ADMIN];
+
+    if (!admin || !allowedRoles.includes(admin.role)) {
       throw new ForbiddenException('Only admins can update account status');
     }
 
@@ -702,20 +700,21 @@ export class UsersService {
     user: User,
     filters: RecommendationFiltersDto,
   ): Prisma.UserWhereInput {
+    const andConditions: Prisma.UserWhereInput[] = [];
+
     const where: Prisma.UserWhereInput = {
       deletedAt: null,
       id: { not: user.id }, // Exclude self
-      AND: [],
     };
 
     // Target roles
     if (filters.targetRoles && filters.targetRoles.length > 0) {
-      where.AND?.push({ role: { in: filters.targetRoles } });
+      andConditions.push({ role: { in: filters.targetRoles } });
     }
 
     // Required skills
     if (filters.requiredSkills && filters.requiredSkills.length > 0) {
-      where.AND?.push({
+      andConditions.push({
         skills: {
           some: {
             name: { in: filters.requiredSkills },
@@ -726,7 +725,7 @@ export class UsersService {
 
     // Preferred locations
     if (filters.preferredLocations && filters.preferredLocations.length > 0) {
-      where.AND?.push({
+      andConditions.push({
         OR: [
           { city: { in: filters.preferredLocations } },
           {
@@ -740,11 +739,16 @@ export class UsersService {
 
     // Minimum experience
     if (filters.minExperience !== undefined) {
-      where.AND?.push({
+      andConditions.push({
         experiences: {
           some: {},
         },
       });
+    }
+
+    // Only add AND if we have conditions
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
     }
 
     return where;
@@ -957,14 +961,14 @@ export class UsersService {
   ): Prisma.UserWhereInput {
     if (!filters) return { deletedAt: null };
 
+    const andConditions: Prisma.UserWhereInput[] = [];
     const where: Prisma.UserWhereInput = {
       deletedAt: null,
-      AND: [],
     };
 
     // Text search
     if (filters.search) {
-      where.AND?.push({
+      andConditions.push({
         OR: [
           { firstName: { contains: filters.search, mode: 'insensitive' } },
           { lastName: { contains: filters.search, mode: 'insensitive' } },
@@ -977,25 +981,25 @@ export class UsersService {
 
     // Role filter
     if (filters.roles && filters.roles.length > 0) {
-      where.AND?.push({ role: { in: filters.roles } });
+      andConditions.push({ role: { in: filters.roles } });
     }
 
     // Location filters
     if (filters.cities && filters.cities.length > 0) {
-      where.AND?.push({ city: { in: filters.cities } });
+      andConditions.push({ city: { in: filters.cities } });
     }
 
     if (filters.countries && filters.countries.length > 0) {
-      where.AND?.push({ country: { in: filters.countries } });
+      andConditions.push({ country: { in: filters.countries } });
     }
 
     if (filters.universities && filters.universities.length > 0) {
-      where.AND?.push({ university: { in: filters.universities } });
+      andConditions.push({ university: { in: filters.universities } });
     }
 
     // Skills filter
     if (filters.skills && filters.skills.length > 0) {
-      where.AND?.push({
+      andConditions.push({
         skills: {
           some: {
             name: { in: filters.skills },
@@ -1006,7 +1010,7 @@ export class UsersService {
 
     // Education filters
     if (filters.fields && filters.fields.length > 0) {
-      where.AND?.push({
+      andConditions.push({
         education: {
           some: {
             field: { in: filters.fields },
@@ -1016,7 +1020,7 @@ export class UsersService {
     }
 
     if (filters.institutions && filters.institutions.length > 0) {
-      where.AND?.push({
+      andConditions.push({
         education: {
           some: {
             institution: { in: filters.institutions },
@@ -1027,36 +1031,41 @@ export class UsersService {
 
     // GPA filters
     if (filters.minGpa !== undefined) {
-      where.AND?.push({ gpa: { gte: filters.minGpa } });
+      andConditions.push({ gpa: { gte: filters.minGpa } });
     }
 
     if (filters.maxGpa !== undefined) {
-      where.AND?.push({ gpa: { lte: filters.maxGpa } });
+      andConditions.push({ gpa: { lte: filters.maxGpa } });
     }
 
     // Graduation year filter
     if (filters.graduationYears && filters.graduationYears.length > 0) {
-      where.AND?.push({ graduationYear: { in: filters.graduationYears } });
+      andConditions.push({ graduationYear: { in: filters.graduationYears } });
     }
 
     // Availability filter
     if (filters.availability && filters.availability.length > 0) {
-      where.AND?.push({ availability: { in: filters.availability } });
+      andConditions.push({ availability: { in: filters.availability } });
     }
 
     // Student ID filter
     if (filters.studentIds && filters.studentIds.length > 0) {
-      where.AND?.push({ studentId: { in: filters.studentIds } });
+      andConditions.push({ studentId: { in: filters.studentIds } });
     }
 
     // Verification filter
     if (filters.isVerified !== undefined) {
-      where.AND?.push({ isVerified: filters.isVerified });
+      andConditions.push({ isVerified: filters.isVerified });
     }
 
     // Visibility filter
     if (filters.visibility && filters.visibility.length > 0) {
-      where.AND?.push({ visibility: { in: filters.visibility } });
+      andConditions.push({ visibility: { in: filters.visibility } });
+    }
+
+    // Only add AND if we have conditions
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
     }
 
     return where;
@@ -1068,19 +1077,20 @@ export class UsersService {
     pagination: PaginationDto,
   ): Promise<PaginatedUsersResponseDto> {
     const { page = 1, limit = 10 } = pagination;
-    const { sortBy = 'gpa', sortOrder = 'desc' } = filters;
+    const sortBy = 'gpa';
+    const sortOrder = 'desc';
 
     const skip = (page - 1) * limit;
 
+    const andConditions: Prisma.UserWhereInput[] = [];
     const where: Prisma.UserWhereInput = {
       deletedAt: null,
       role: UserRole.STUDENT,
-      AND: [],
     };
 
     // Apply employer-specific filters
     if (filters.requiredSkills && filters.requiredSkills.length > 0) {
-      where.AND?.push({
+      andConditions.push({
         skills: {
           some: {
             name: { in: filters.requiredSkills },
@@ -1090,23 +1100,23 @@ export class UsersService {
     }
 
     if (filters.graduationYears && filters.graduationYears.length > 0) {
-      where.AND?.push({ graduationYear: { in: filters.graduationYears } });
+      andConditions.push({ graduationYear: { in: filters.graduationYears } });
     }
 
     if (filters.minGpa !== undefined) {
-      where.AND?.push({ gpa: { gte: filters.minGpa } });
+      andConditions.push({ gpa: { gte: filters.minGpa } });
     }
 
     if (filters.availability && filters.availability.length > 0) {
-      where.AND?.push({ availability: { in: filters.availability } });
+      andConditions.push({ availability: { in: filters.availability } });
     }
 
     if (filters.universities && filters.universities.length > 0) {
-      where.AND?.push({ university: { in: filters.universities } });
+      andConditions.push({ university: { in: filters.universities } });
     }
 
     if (filters.fields && filters.fields.length > 0) {
-      where.AND?.push({
+      andConditions.push({
         education: {
           some: {
             field: { in: filters.fields },
@@ -1116,7 +1126,12 @@ export class UsersService {
     }
 
     if (filters.locations && filters.locations.length > 0) {
-      where.AND?.push({ city: { in: filters.locations } });
+      andConditions.push({ city: { in: filters.locations } });
+    }
+
+    // Only add AND if we have conditions
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
     }
 
     const [users, total] = await Promise.all([
@@ -1283,5 +1298,531 @@ export class UsersService {
       ...searchDto,
       filters: filtersWithRole,
     });
+  }
+
+  // ============= USER DELETION OPERATIONS =============
+
+  /**
+   * Soft delete a user (marks as deleted but keeps data)
+   */
+  async softDeleteUser(
+    adminId: string,
+    userId: string,
+    reason?: string,
+  ): Promise<User> {
+    // Verify admin permissions
+    const admin = await this.findById(adminId);
+    const allowedRoles: UserRole[] = [UserRole.ADMIN, UserRole.SUPER_ADMIN];
+
+    if (!admin || !allowedRoles.includes(admin.role)) {
+      throw new ForbiddenException('Only admins can delete users');
+    }
+
+    // Check if user exists and is not already deleted
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.deletedAt) {
+      throw new ConflictException('User is already deleted');
+    }
+
+    // Prevent self-deletion
+    if (adminId === userId) {
+      throw new ForbiddenException('Cannot delete your own account');
+    }
+
+    // Prevent deletion of other admins by non-super-admins
+    if (user.role === UserRole.ADMIN && admin.role !== UserRole.SUPER_ADMIN) {
+      throw new ForbiddenException(
+        'Only super admins can delete admin accounts',
+      );
+    }
+
+    // Soft delete the user and related data
+    const deletedUser = await this.prisma.$transaction(async (tx) => {
+      // Mark user as deleted
+      const updatedUser = await tx.user.update({
+        where: { id: userId },
+        data: {
+          deletedAt: new Date(),
+          accountStatus: AccountStatus.INACTIVE,
+        },
+        include: this.getFullUserInclude(),
+      });
+
+      // Soft delete related data
+      await Promise.all([
+        // Education records
+        tx.education.updateMany({
+          where: { userId },
+          data: { deletedAt: new Date() },
+        }),
+        // Experience records
+        tx.experience.updateMany({
+          where: { userId },
+          data: { deletedAt: new Date() },
+        }),
+        // Skills
+        tx.skill.updateMany({
+          where: { userId },
+          data: { deletedAt: new Date() },
+        }),
+        // Posts
+        tx.post.updateMany({
+          where: { userId },
+          data: { deletedAt: new Date() },
+        }),
+        // Comments
+        tx.comment.updateMany({
+          where: { userId },
+          data: { deletedAt: new Date() },
+        }),
+        // Job applications
+        tx.jobApplication.updateMany({
+          where: { userId },
+          data: { deletedAt: new Date() },
+        }),
+        // Messages
+        tx.message.updateMany({
+          where: { senderId: userId },
+          data: { deletedAt: new Date() },
+        }),
+        // Group messages
+        tx.groupMessage.updateMany({
+          where: { senderId: userId },
+          data: { deletedAt: new Date() },
+        }),
+        // Notifications
+        tx.notification.updateMany({
+          where: { userId },
+          data: { deletedAt: new Date() },
+        }),
+        // Documents
+        tx.document.updateMany({
+          where: { userId },
+          data: { deletedAt: new Date() },
+        }),
+        // Chats where user is involved
+        tx.chat.updateMany({
+          where: { userId },
+          data: { deletedAt: new Date() },
+        }),
+      ]);
+
+      // Log the deletion
+      await tx.securityLog.create({
+        data: {
+          userId: adminId,
+          event: 'USER_SOFT_DELETED',
+          metadata: {
+            deletedUserId: userId,
+            deletedUserEmail: user.email,
+            reason: reason || 'No reason provided',
+            deletedAt: new Date(),
+          },
+        },
+      });
+
+      return updatedUser;
+    });
+
+    return deletedUser;
+  }
+
+  /**
+   * Hard delete a user (permanently removes all data)
+   * This is irreversible and should be used with extreme caution
+   */
+  async hardDeleteUser(
+    superAdminId: string,
+    userId: string,
+    confirmationCode: string,
+  ): Promise<{ message: string; deletedData: any }> {
+    // Only super admins can perform hard deletes
+    const superAdmin = await this.findById(superAdminId);
+    if (!superAdmin || superAdmin.role !== UserRole.SUPER_ADMIN) {
+      throw new ForbiddenException(
+        'Only super admins can permanently delete users',
+      );
+    }
+
+    // Verify confirmation code (in real app, this would be a secure token)
+    const expectedCode = `HARD_DELETE_${userId}_${new Date().toISOString().slice(0, 10)}`;
+    if (confirmationCode !== expectedCode) {
+      throw new ForbiddenException('Invalid confirmation code for hard delete');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        education: true,
+        experiences: true,
+        skills: true,
+        posts: true,
+        comments: true,
+        jobApplications: true,
+        messages: true,
+        groupMessages: true,
+        notifications: true,
+        documents: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Prevent self-deletion
+    if (superAdminId === userId) {
+      throw new ForbiddenException('Cannot delete your own account');
+    }
+
+    // Store deletion summary for logging
+    const deletionSummary = {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      educationRecords: user.education?.length || 0,
+      experienceRecords: user.experiences?.length || 0,
+      skillRecords: user.skills?.length || 0,
+      postsCount: user.posts?.length || 0,
+      commentsCount: user.comments?.length || 0,
+      applicationsCount: user.jobApplications?.length || 0,
+      messagesCount: user.messages?.length || 0,
+      documentsCount: user.documents?.length || 0,
+      deletedAt: new Date(),
+    };
+
+    // Hard delete with cascade
+    await this.prisma.$transaction(async (tx) => {
+      // Delete in proper order to respect foreign key constraints
+
+      // Delete user-related data first
+      await Promise.all([
+        tx.education.deleteMany({ where: { userId } }),
+        tx.experience.deleteMany({ where: { userId } }),
+        tx.skill.deleteMany({ where: { userId } }),
+        tx.post.deleteMany({ where: { userId } }),
+        tx.comment.deleteMany({ where: { userId } }),
+        tx.jobApplication.deleteMany({ where: { userId } }),
+        tx.message.deleteMany({ where: { senderId: userId } }),
+        tx.groupMessage.deleteMany({ where: { senderId: userId } }),
+        tx.notification.deleteMany({ where: { userId } }),
+        tx.document.deleteMany({ where: { userId } }),
+        tx.securityLog.deleteMany({ where: { userId } }),
+        tx.userSession.deleteMany({ where: { userId } }),
+        tx.twoFactorAuth.deleteMany({ where: { userId } }),
+        tx.backupCode.deleteMany({ where: { userId } }),
+        tx.trustedDevice.deleteMany({ where: { userId } }),
+      ]);
+
+      // Remove user from chat groups
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          groupMemberships: {
+            set: [],
+          },
+        },
+      });
+
+      // Delete owned chat groups (transfer ownership or delete)
+      const ownedGroups = await tx.chatGroup.findMany({
+        where: { ownerId: userId },
+      });
+
+      for (const group of ownedGroups) {
+        // Option 1: Delete the group entirely
+        await tx.chatGroup.delete({
+          where: { id: group.id },
+        });
+
+        // Option 2: Transfer ownership to another admin (alternative)
+        // const firstAdmin = await tx.user.findFirst({
+        //   where: { role: { in: [UserRole.ADMIN, UserRole.SUPER_ADMIN] } }
+        // });
+        // if (firstAdmin) {
+        //   await tx.chatGroup.update({
+        //     where: { id: group.id },
+        //     data: { ownerId: firstAdmin.id }
+        //   });
+        // }
+      }
+
+      // Finally delete the user
+      await tx.user.delete({
+        where: { id: userId },
+      });
+
+      // Log the hard deletion
+      await tx.securityLog.create({
+        data: {
+          userId: superAdminId,
+          event: 'USER_HARD_DELETED',
+          metadata: deletionSummary,
+        },
+      });
+    });
+
+    return {
+      message: 'User permanently deleted successfully',
+      deletedData: deletionSummary,
+    };
+  }
+
+  /**
+   * Restore a soft-deleted user
+   */
+  async restoreUser(adminId: string, userId: string): Promise<User> {
+    // Verify admin permissions
+    const admin = await this.findById(adminId);
+    const allowedRoles: UserRole[] = [UserRole.ADMIN, UserRole.SUPER_ADMIN];
+
+    if (!admin || !allowedRoles.includes(admin.role)) {
+      throw new ForbiddenException('Only admins can restore users');
+    }
+
+    // Find the deleted user
+    const deletedUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!deletedUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!deletedUser.deletedAt) {
+      throw new ConflictException('User is not deleted');
+    }
+
+    // Restore the user and related data
+    const restoredUser = await this.prisma.$transaction(async (tx) => {
+      // Restore user
+      const updatedUser = await tx.user.update({
+        where: { id: userId },
+        data: {
+          deletedAt: null,
+          accountStatus: AccountStatus.ACTIVE,
+        },
+        include: this.getFullUserInclude(),
+      });
+
+      // Restore related data
+      await Promise.all([
+        tx.education.updateMany({
+          where: { userId },
+          data: { deletedAt: null },
+        }),
+        tx.experience.updateMany({
+          where: { userId },
+          data: { deletedAt: null },
+        }),
+        tx.skill.updateMany({
+          where: { userId },
+          data: { deletedAt: null },
+        }),
+        tx.post.updateMany({
+          where: { userId },
+          data: { deletedAt: null },
+        }),
+        tx.comment.updateMany({
+          where: { userId },
+          data: { deletedAt: null },
+        }),
+        tx.jobApplication.updateMany({
+          where: { userId },
+          data: { deletedAt: null },
+        }),
+        tx.message.updateMany({
+          where: { senderId: userId },
+          data: { deletedAt: null },
+        }),
+        tx.groupMessage.updateMany({
+          where: { senderId: userId },
+          data: { deletedAt: null },
+        }),
+        tx.notification.updateMany({
+          where: { userId },
+          data: { deletedAt: null },
+        }),
+        tx.document.updateMany({
+          where: { userId },
+          data: { deletedAt: null },
+        }),
+        tx.chat.updateMany({
+          where: { userId },
+          data: { deletedAt: null },
+        }),
+      ]);
+
+      // Log the restoration
+      await tx.securityLog.create({
+        data: {
+          userId: adminId,
+          event: 'USER_RESTORED',
+          metadata: {
+            restoredUserId: userId,
+            restoredUserEmail: deletedUser.email,
+            restoredAt: new Date(),
+          },
+        },
+      });
+
+      return updatedUser;
+    });
+
+    return restoredUser;
+  }
+
+  /**
+   * Get deleted users (for admin management)
+   */
+  async getDeletedUsers(
+    adminId: string,
+    pagination: PaginationDto,
+  ): Promise<PaginatedUsersResponseDto> {
+    // Verify admin permissions
+    const admin = await this.findById(adminId);
+    const allowedRoles: UserRole[] = [UserRole.ADMIN, UserRole.SUPER_ADMIN];
+
+    if (!admin || !allowedRoles.includes(admin.role)) {
+      throw new ForbiddenException('Only admins can view deleted users');
+    }
+
+    const { page = 1, limit = 10 } = pagination;
+    const skip = (page - 1) * limit;
+
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where: {
+          deletedAt: { not: null },
+        },
+        include: this.getSearchUserInclude(),
+        skip,
+        take: limit,
+        orderBy: { deletedAt: 'desc' },
+      }),
+      this.prisma.user.count({
+        where: {
+          deletedAt: { not: null },
+        },
+      }),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: users.map((user) => this.sanitizeUserForResponse(user)),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  }
+
+  /**
+   * Self-delete account (user deletes their own account)
+   */
+  async selfDeleteAccount(
+    userId: string,
+    password: string,
+    reason?: string,
+  ): Promise<{ message: string }> {
+    const user = await this.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Verify password for security
+    const isPasswordValid = await this.validatePassword(
+      password,
+      user.password,
+    );
+    if (!isPasswordValid) {
+      throw new ForbiddenException('Invalid password');
+    }
+
+    // Perform soft delete
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          deletedAt: new Date(),
+          accountStatus: AccountStatus.INACTIVE,
+        },
+      });
+
+      // Log self-deletion
+      await tx.securityLog.create({
+        data: {
+          userId,
+          event: 'SELF_DELETE_ACCOUNT',
+          metadata: {
+            reason: reason || 'User requested account deletion',
+            deletedAt: new Date(),
+          },
+        },
+      });
+    });
+
+    return {
+      message:
+        'Account deleted successfully. You can contact support within 30 days to restore your account.',
+    };
+  }
+
+  /**
+   * Permanently delete old soft-deleted users (cleanup job)
+   */
+  async cleanupOldDeletedUsers(
+    superAdminId: string,
+    daysOld: number = 30,
+  ): Promise<{ message: string; deletedCount: number }> {
+    const superAdmin = await this.findById(superAdminId);
+    if (!superAdmin || superAdmin.role !== UserRole.SUPER_ADMIN) {
+      throw new ForbiddenException(
+        'Only super admins can perform cleanup operations',
+      );
+    }
+
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+
+    const oldDeletedUsers = await this.prisma.user.findMany({
+      where: {
+        deletedAt: {
+          not: null,
+          lt: cutoffDate,
+        },
+      },
+      select: { id: true, email: true },
+    });
+
+    let deletedCount = 0;
+
+    for (const user of oldDeletedUsers) {
+      try {
+        // Generate confirmation code for each user
+        const confirmationCode = `HARD_DELETE_${user.id}_${new Date().toISOString().slice(0, 10)}`;
+        await this.hardDeleteUser(superAdminId, user.id, confirmationCode);
+        deletedCount++;
+      } catch (error) {
+        console.error(`Failed to delete user ${user.email}:`, error);
+      }
+    }
+
+    return {
+      message: `Cleanup completed. ${deletedCount} users permanently deleted.`,
+      deletedCount,
+    };
   }
 }

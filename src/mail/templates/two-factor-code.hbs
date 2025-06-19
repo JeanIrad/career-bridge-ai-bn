@@ -1,0 +1,37 @@
+<p>You're logging into your CareerBridge AI account, and we need to verify your
+  identity with two-factor authentication.</p>
+
+<p>Please use the verification code below to complete your sign-in:</p>
+
+<div class='code-container'>
+  <div class='code-label'>Two-Factor Authentication Code</div>
+  <div class='verification-code'>{{twoFactorCode}}</div>
+  <div class='code-expiry'>This code expires in 5 minutes</div>
+</div>
+
+<div class='security-info'>
+  <div class='security-info-title'>📱 Login Details</div>
+  <div class='security-info-content'>
+    <p><strong>Time:</strong> {{loginTime}}</p>
+    {{#if ipAddress}}<p><strong>IP Address:</strong> {{ipAddress}}</p>{{/if}}
+    {{#if location}}<p><strong>Location:</strong> {{location}}</p>{{/if}}
+    {{#if deviceInfo}}<p><strong>Device:</strong> {{deviceInfo}}</p>{{/if}}
+  </div>
+</div>
+
+<div class='alert alert-warning'>
+  <strong>Not you?</strong><br />
+  If you didn't attempt to log in, someone may be trying to access your account.
+  Please:
+  <ul>
+    <li>Do not enter this verification code</li>
+    <li>Change your password immediately</li>
+    <li>Contact our security team</li>
+  </ul>
+</div>
+
+<p>For additional security, we recommend using an authenticator app instead of
+  SMS/email codes when possible.</p>
+
+<p>Best regards,<br />
+  <strong>The CareerBridge AI Security Team</strong></p>

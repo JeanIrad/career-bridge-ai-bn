@@ -19,6 +19,14 @@ async function main() {
       role: 'SUPER_ADMIN',
       firstName: 'Super',
       lastName: 'Admin',
+      accountStatus: 'ACTIVE',
+      gender: 'MALE',
+      dateOfBirth: new Date('1990-01-01'),
+      phoneNumber: '+8801712345678',
+      address: '123 Main St, Anytown, USA',
+      city: 'Anytown',
+      state: 'CA',
+      isVerified: true,
     },
   });
 

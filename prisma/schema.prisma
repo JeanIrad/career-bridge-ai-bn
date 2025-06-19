@@ -44,7 +44,7 @@ model User {
   role            UserRole         @default(STUDENT)
   firstName       String
   lastName        String
-  phoneNumber     String?
+ phoneNumber     String? @unique
   address         String?
   city            String?
   state           String?
@@ -71,7 +71,7 @@ model User {
   postedJobs      Job[]            @relation("PostedJobs")
   notifications   Notification[]
   eventRegistrations EventRegistration[]
-  chat              Chat[]
+  chats              Chat[]
   comments          Comment[]
   education         Education[]
   experiences       Experience[]
@@ -87,9 +87,132 @@ model User {
   ownedGroups       ChatGroup[]  @relation("GroupOwner")
   groupMemberships  ChatGroup[]  @relation("GroupMembers")
   groupMessages     GroupMessage[]
+
+  // Enhanced Auth relations
+  userSessions      UserSession[]
+  twoFactorAuth     TwoFactorAuth?
+  backupCodes       BackupCode[]
+  securityLogs      SecurityLog[]
+  trustedDevices    TrustedDevice[]
+  
+  // Document uploads
+  documents         Document[]
 }
 
+// Enhanced Authentication Models
+model VerificationCode {
+  id        String   @id @default(uuid())
+  email     String
+  code      String
+  type      String   // 'email_verification', 'password_reset', 'two_factor', 'account_reactivation'
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
 
+  @@unique([email, type])
+}
+
+model UserSession {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionToken String?  @unique
+  deviceName   String?
+  deviceId     String?
+  ipAddress    String?
+  userAgent    String?
+  location     String?
+  isActive     Boolean  @default(true)
+  lastActivity DateTime @default(now())
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime?
+
+  @@index([userId])
+}
+
+model TwoFactorAuth {
+  id          String  @id @default(uuid())
+  userId      String  @unique
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  secret      String  // TOTP secret
+  isConfirmed Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model BackupCode {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  code      String   // Hashed backup code
+  isUsed    Boolean  @default(false)
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model AccountLockout {
+  id                String    @id @default(uuid())
+  email             String    @unique
+  failedAttempts    Int       @default(0)
+  lastFailedAttempt DateTime?
+  lockedUntil       DateTime?
+  ipAddress         String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model SecurityLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event     String   // 'LOGIN_SUCCESS', 'LOGIN_FAILED', 'PASSWORD_CHANGED', etc.
+  ipAddress String?
+  userAgent String?
+  metadata  Json?    // Additional event data
+  timestamp DateTime @default(now())
+
+  @@index([userId, timestamp])
+  @@index([event, timestamp])
+}
+
+model TrustedDevice {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId    String   @unique
+  deviceName  String
+  deviceType  String   // 'mobile', 'desktop', 'tablet'
+  fingerprint String   // Device fingerprint hash
+  isActive    Boolean  @default(true)
+  lastUsed    DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+}
+
+model PasswordHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  password  String   // Hashed password
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model LoginAttempt {
+  id         String   @id @default(uuid())
+  email      String
+  ipAddress  String?
+  userAgent  String?
+  success    Boolean
+  failReason String?  // Reason for failure if unsuccessful
+  timestamp  DateTime @default(now())
+
+  @@index([email, timestamp])
+  @@index([ipAddress, timestamp])
+}
 
 // model Profile {
 //   id            String       @id @default(uuid())
@@ -120,6 +243,9 @@ model Education {
   activities  String[]
   user     User  @relation(fields: [userId], references: [id])
   userId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
 }
 
 model Experience {
@@ -137,6 +263,7 @@ model Experience {
   userId   String
   company     Company  @relation(fields: [companyId], references: [id])
   companyId   String
+  deletedAt DateTime?
 }
 
 model Skill {
@@ -145,6 +272,9 @@ model Skill {
   endorsements Int?
   user     User  @relation(fields: [userId], references: [id])
   userId   String
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Company {
@@ -161,6 +291,9 @@ model Company {
   ownerId     String
   jobs        Job[]
   experiences Experience[]
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Job {
@@ -180,6 +313,7 @@ model Job {
   postedBy          User               @relation("PostedJobs", fields: [postedById], references: [id])
   postedById        String
   applications      JobApplication[]
+  deletedAt DateTime?
 }
 
 model JobApplication {
@@ -194,6 +328,8 @@ model JobApplication {
   jobId       String
   user        User              @relation(fields: [userId], references: [id])
   userId      String
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
 }
 
 model Post {
@@ -211,6 +347,7 @@ model Post {
   user        User       @relation(fields: [userId], references: [id])
   userId      String
   comments    Comment[]
+  deletedAt DateTime?
 }
 
 model Comment {
@@ -220,9 +357,10 @@ model Comment {
   updatedAt DateTime @updatedAt
   post      Post     @relation(fields: [postId], references: [id])
   postId    String
-
   user User @relation(fields: [userId], references: [id])
   userId String
+  deletedAt DateTime?
+
 }
 
 model Forum {
@@ -232,6 +370,9 @@ model Forum {
   category    String
   moderators  String[]
   posts       Post[]
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Event {
@@ -249,6 +390,9 @@ model Event {
   creator            User                @relation(fields: [creatorId], references: [id])
   creatorId          String
   registrations      EventRegistration[]
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model EventRegistration {
@@ -256,7 +400,8 @@ model EventRegistration {
   event     Event    @relation(fields: [eventId], references: [id])
   eventId   String
   createdAt DateTime @default(now())
-
+  deletedAt DateTime?
+  updatedAt DateTime @updatedAt
   User User[]
 }
 
@@ -269,6 +414,7 @@ model Chat {
   messages     Message[]
   user         User      @relation(fields: [userId], references: [id])
   userId       String
+  deletedAt DateTime?
 }
 
 model Message {
@@ -279,6 +425,8 @@ model Message {
   chatId    String
   sender    User     @relation(fields: [senderId], references: [id])
   senderId  String
+  deletedAt DateTime?
+  updatedAt DateTime @updatedAt
 }
 
 model Notification {
@@ -291,6 +439,8 @@ model Notification {
   link      String?
   user      User     @relation(fields: [userId], references: [id])
   userId    String
+  deletedAt DateTime?
+  updatedAt DateTime @updatedAt
 }
 model ChatGroup {
   id          String         @id @default(uuid())
@@ -320,6 +470,7 @@ model GroupMessage {
   groupId   String
   sender    User      @relation(fields: [senderId], references: [id])
   senderId  String
+  deletedAt DateTime?
 }
 
 enum Visibility {
@@ -350,4 +501,52 @@ enum EventStatus {
   UPCOMING
   ONGOING
   COMPLETED
+}
+
+model Document {
+  id                  String             @id @default(uuid())
+  userId              String
+  documentType        DocumentType
+  originalName        String
+  cloudinaryPublicId  String
+  cloudinaryUrl       String
+  fileSize            Int
+  mimeType            String
+  uploadedAt          DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  isVerified          Boolean            @default(false)
+  verificationStatus  VerificationStatus @default(PENDING)
+  verificationNotes   String?
+  verifiedAt          DateTime?
+  verifiedBy          String?
+  deletedAt           DateTime?
+  createdAt           DateTime           @default(now())
+  // Relations
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([documentType])
+  @@index([verificationStatus])
+}
+
+enum DocumentType {
+  RESUME
+  DEGREE_CERTIFICATE
+  TRANSCRIPT
+  ID_DOCUMENT
+  BUSINESS_LICENSE
+  COMPANY_REGISTRATION
+  PORTFOLIO
+  COVER_LETTER
+  RECOMMENDATION_LETTER
+  PROFILE_PICTURE
+  COMPANY_LOGO
+  OTHER
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REQUIRES_RESUBMISSION
 }

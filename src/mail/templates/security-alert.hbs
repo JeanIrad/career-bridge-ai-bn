@@ -1,0 +1,53 @@
+<p>We detected
+  {{alertType}}
+  on your CareerBridge AI account and wanted to notify you immediately.</p>
+
+<div class='alert alert-danger'>
+  <strong>Security Alert: {{alertType}}</strong><br />
+  {{details}}
+</div>
+
+<div class='security-info'>
+  <div class='security-info-title'>🔍 Event Details</div>
+  <div class='security-info-content'>
+    <p><strong>Time:</strong> {{timestamp}}</p>
+    {{#if ipAddress}}<p><strong>IP Address:</strong> {{ipAddress}}</p>{{/if}}
+    {{#if location}}<p><strong>Location:</strong> {{location}}</p>{{/if}}
+    {{#if userAgent}}<p><strong>Browser/Device:</strong>
+        {{userAgent}}</p>{{/if}}
+  </div>
+</div>
+
+<div class='alert alert-warning'>
+  <strong>Was this you?</strong><br />
+  {{#eq alertType 'Successful Login'}}
+    If you recognize this activity, no action is needed. If not, please secure
+    your account immediately.
+  {{else}}
+    If you didn't perform this action, your account may be compromised. Please
+    take immediate action.
+  {{/eq}}
+</div>
+
+<div class='content'>
+  <strong>Recommended Actions:</strong>
+  <ul>
+    <li><strong>Change your password</strong>
+      immediately if you don't recognize this activity</li>
+    <li><strong>Enable two-factor authentication</strong>
+      for additional security</li>
+    <li><strong>Review recent account activity</strong>
+      in your security settings</li>
+    <li><strong>Log out of all devices</strong>
+      if you suspect unauthorized access</li>
+    <li><strong>Contact our support team</strong> if you need assistance</li>
+  </ul>
+</div>
+
+<a href='{{securityUrl}}' class='button'>Review Account Security</a>
+
+<p>If you have any concerns about your account security, please don't hesitate
+  to contact our security team immediately.</p>
+
+<p>Best regards,<br />
+  <strong>The CareerBridge AI Security Team</strong></p>

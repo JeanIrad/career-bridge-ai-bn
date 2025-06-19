@@ -347,50 +347,157 @@ export class ChatsService {
     const group = await this.prisma.chatGroup.findUnique({
       where: {
         id: groupId,
-        deletedAt: null,
+        deletedAt: null, // Only find active groups
       },
       include: { members: true },
     });
-
     if (!group) throw new NotFoundException('Group not found');
 
+    // Check if user is a member
     const isMember = group.members.some((member) => member.id === userId);
     if (!isMember) {
       throw new NotFoundException('User is not a member of this group');
     }
 
-    if (group.ownerId === userId) {
-      throw new NotFoundException(
-        'Owner cannot leave the group. Transfer ownership or delete the group instead.',
-      );
-    }
-
-    return await this.prisma.chatGroup.update({
+    // Remove user from group
+    await this.prisma.chatGroup.update({
       where: { id: groupId },
       data: {
         members: {
           disconnect: { id: userId },
         },
-        updatedAt: new Date(),
-      },
-      include: {
-        owner: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            avatar: true,
-          },
-        },
-        members: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            avatar: true,
-          },
-        },
       },
     });
+
+    // If the user is the owner and there are other members, transfer ownership
+    if (group.ownerId === userId && group.members.length > 1) {
+      const newOwner = group.members.find((member) => member.id !== userId);
+      if (newOwner) {
+        await this.prisma.chatGroup.update({
+          where: { id: groupId },
+          data: { ownerId: newOwner.id },
+        });
+      }
+    }
+
+    // If no members left or owner leaves and no one to transfer to, soft delete
+    if (
+      group.members.length === 1 ||
+      (group.ownerId === userId && group.members.length === 1)
+    ) {
+      await this.prisma.chatGroup.update({
+        where: { id: groupId },
+        data: { deletedAt: new Date() },
+      });
+    }
+
+    return { message: 'Successfully left the group' };
+  }
+
+  // New methods for the gateway
+  async getGroupMessages(
+    groupId: string,
+    limit: number = 50,
+    offset: number = 0,
+  ) {
+    const group = await this.prisma.chatGroup.findUnique({
+      where: {
+        id: groupId,
+        deletedAt: null,
+      },
+    });
+    if (!group) throw new NotFoundException('Group not found');
+
+    return await this.prisma.groupMessage.findMany({
+      where: { groupId },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      skip: offset,
+    });
+  }
+
+  async getDirectMessages(
+    userId: string,
+    targetUserId: string,
+    limit: number = 50,
+    offset: number = 0,
+  ) {
+    // Find the chat between these two users
+    const chat = await this.prisma.chat.findFirst({
+      where: {
+        participants: {
+          hasEvery: [userId, targetUserId],
+        },
+        type: 'direct',
+      },
+    });
+
+    if (!chat) {
+      return []; // No conversation yet
+    }
+
+    return await this.prisma.message.findMany({
+      where: { chatId: chat.id },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      skip: offset,
+    });
+  }
+
+  async markMessagesAsRead(userId: string, messageIds: string[]) {
+    // For group messages, we might need a separate read status table
+    // For now, let's implement a simple version
+    // This is a placeholder - you might want to create a MessageReadStatus model
+
+    // For now, we'll just return the count without actually updating read status
+    // since we don't have read status fields in the current schema
+    const groupMessages = await this.prisma.groupMessage.findMany({
+      where: {
+        id: { in: messageIds },
+        senderId: { not: userId },
+      },
+    });
+
+    const directMessages = await this.prisma.message.findMany({
+      where: {
+        id: { in: messageIds },
+        senderId: { not: userId },
+      },
+    });
+
+    // TODO: Implement proper read status tracking
+    // You might want to create a MessageReadStatus model or add readBy fields
+
+    return {
+      groupMessagesUpdated: groupMessages.length,
+      directMessagesUpdated: directMessages.length,
+      message: 'Read status tracking not fully implemented yet',
+    };
+  }
+
+  async removeUserFromGroup(groupId: string, userId: string) {
+    return await this.leaveGroup(groupId, userId);
   }
 }
