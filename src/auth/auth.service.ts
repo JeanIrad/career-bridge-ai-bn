@@ -26,6 +26,7 @@ export interface JwtPayload {
 export interface AuthResponse {
   user: Omit<User, 'password'>;
   access_token: string;
+  refresh_token: string;
 }
 
 @Injectable()
@@ -225,10 +226,13 @@ export class AuthService {
 
     const access_token = this.jwtService.sign(payload);
 
+    const refresh_token = this.generateRefreshToken();
+
     const { password, ...userWithoutPassword } = user;
 
     return {
       access_token,
+      refresh_token,
       user: userWithoutPassword,
     };
   }
@@ -364,10 +368,12 @@ export class AuthService {
     };
 
     const access_token = this.jwtService.sign(payload);
+    const refresh_token = this.generateRefreshToken();
     const { password, ...userWithoutPassword } = user;
 
     return {
       access_token,
+      refresh_token,
       user: userWithoutPassword,
     };
   }
@@ -389,6 +395,13 @@ export class AuthService {
    */
   private generateVerificationCode(): string {
     return crypto.randomInt(100000, 999999).toString();
+  }
+
+  /**
+   * Generate a refresh token
+   */
+  private generateRefreshToken(): string {
+    return crypto.randomBytes(32).toString('base64');
   }
 
   /**

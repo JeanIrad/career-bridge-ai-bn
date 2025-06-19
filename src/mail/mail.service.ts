@@ -87,8 +87,8 @@ export class MailService {
     // Create transporter
     this.transporter = nodemailer.createTransport({
       host: this.configService.get<string>('SMTP_HOST', 'localhost'),
-      port: this.configService.get<number>('SMTP_PORT', 587),
-      secure: this.configService.get<boolean>('SMTP_SECURE', false),
+      port: this.configService.get<number>('SMTP_PORT', 465),
+      secure: this.configService.get<boolean>('SMTP_SECURE', true),
       auth: {
         user: this.configService.get<string>('SMTP_USER'),
         pass: this.configService.get<string>('SMTP_PASS'),
@@ -99,7 +99,10 @@ export class MailService {
     });
 
     // Configure Handlebars
-    const templatesPath = path.resolve(__dirname, 'templates');
+    const templatesPath = path.resolve(
+      `${process.cwd()}/src/mail`,
+      'templates',
+    );
     const layoutsPath = path.resolve(templatesPath, 'layouts');
     const partialsPath = path.resolve(templatesPath, 'partials');
 
@@ -290,16 +293,21 @@ export class MailService {
     firstName: string,
     role: UserRole,
   ): Promise<boolean> {
+    const baseUrl = this.configService.get<string>(
+      'FRONTEND_URL',
+      'http://localhost:3000',
+    );
+
+    // Generate role-specific dashboard URL
+    const dashboardUrl = this.getRoleDashboardUrl(baseUrl, role);
+
     const context: WelcomeEmailContext = {
       firstName,
       role,
       roleDisplayName: handlebarsHelpers.getRoleDisplayName(role),
       features: handlebarsHelpers.getRoleFeatures(role),
-      dashboardUrl: `${this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000')}/dashboard`,
-      baseUrl: this.configService.get<string>(
-        'FRONTEND_URL',
-        'http://localhost:3000',
-      ),
+      dashboardUrl,
+      baseUrl,
       currentYear: new Date().getFullYear(),
     };
 
@@ -309,6 +317,26 @@ export class MailService {
       template: 'welcome',
       context,
     });
+  }
+
+  /**
+   * Generate role-specific dashboard URL
+   */
+  private getRoleDashboardUrl(baseUrl: string, role: UserRole): string {
+    const roleRoutes = {
+      [UserRole.STUDENT]: '/dashboard/student',
+      [UserRole.ALUMNI]: '/dashboard/student',
+      [UserRole.EMPLOYER]: '/dashboard/employer',
+      [UserRole.PROFESSOR]: '/dashboard/university',
+      [UserRole.MENTOR]: '/dashboard/mentor',
+      [UserRole.UNIVERSITY_STAFF]: '/dashboard/university',
+      [UserRole.ADMIN]: '/dashboard/admin',
+      [UserRole.SUPER_ADMIN]: '/dashboard/admin',
+      [UserRole.OTHER]: '/dashboard',
+    };
+
+    const route = roleRoutes[role] || '/dashboard';
+    return `${baseUrl}${route}`;
   }
 
   // ============= ACCOUNT MANAGEMENT =============
