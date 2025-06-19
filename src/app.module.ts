@@ -5,6 +5,9 @@ import { PrismaModule } from 'prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ConfigModule } from '@nestjs/config';
+import { ChatsModule } from './chats/chats.module';
+import { MailModule } from './mail/mail.module';
+import { UploadModule } from './upload/upload.module';
 
 @Module({
   imports: [
@@ -12,8 +15,11 @@ import { ConfigModule } from '@nestjs/config';
       isGlobal: true,
     }),
     PrismaModule,
-    AuthModule,
+    AuthModule, // Now includes all enhanced auth features
     UsersModule,
+    ChatsModule,
+    MailModule,
+    UploadModule, // File upload with Cloudinary
   ],
   controllers: [AppController],
   providers: [AppService],

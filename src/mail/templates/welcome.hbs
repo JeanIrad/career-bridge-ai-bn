@@ -1,0 +1,84 @@
+<p>🎉
+  <strong>Welcome to CareerBridge AI!</strong>
+  Your account has been successfully verified and you're now part of our growing
+  community.</p>
+
+<div class='alert alert-success'>
+  <strong>Account Activated!</strong><br />
+  Your
+  <strong>{{roleDisplayName}}</strong>
+  account is now active and ready to use.
+</div>
+
+<div class='content'>
+  <strong>Here's what you can do now:</strong>
+  <ul>
+    {{#each features}}
+      <li>{{this}}</li>
+    {{/each}}
+  </ul>
+</div>
+
+<a href='{{dashboardUrl}}' class='button'>Explore Your Dashboard</a>
+
+<div class='security-info'>
+  <div class='security-info-title'>🛡️ Keep Your Account Secure</div>
+  <div class='security-info-content'>
+    <p>To protect your account and personal information:</p>
+    <ul>
+      <li><strong>Enable two-factor authentication</strong>
+        for extra security</li>
+      <li><strong>Use a strong, unique password</strong>
+        that you don't use elsewhere</li>
+      <li><strong>Keep your profile updated</strong>
+        with current information</li>
+      <li><strong>Review privacy settings</strong>
+        to control what others can see</li>
+    </ul>
+  </div>
+</div>
+
+<div class='content'>
+  <strong>Getting Started Tips:</strong>
+  {{#eq role 'STUDENT'}}
+    <ul>
+      <li>Complete your profile with education and skills</li>
+      <li>Upload your resume to attract employers</li>
+      <li>Browse internships and entry-level positions</li>
+      <li>Connect with alumni for mentorship</li>
+      <li>Join student groups and forums</li>
+    </ul>
+  {{/eq}}
+
+  {{#eq role 'EMPLOYER'}}
+    <ul>
+      <li>Set up your company profile</li>
+      <li>Post your first job opening</li>
+      <li>Search for qualified candidates</li>
+      <li>Host virtual recruitment events</li>
+      <li>Build your employer brand</li>
+    </ul>
+  {{/eq}}
+
+  {{#eq role 'ALUMNI'}}
+    <ul>
+      <li>Update your professional experience</li>
+      <li>Offer mentorship to current students</li>
+      <li>Share job opportunities in your network</li>
+      <li>Attend alumni networking events</li>
+      <li>Give back to your alma mater</li>
+    </ul>
+  {{/eq}}
+</div>
+
+<div class='alert alert-info'>
+  <strong>Need Help?</strong><br />
+  Our support team is here to help you get the most out of CareerBridge AI.
+  Visit our Help Center or contact us directly.
+</div>
+
+<p>We're thrilled to have you aboard and can't wait to see the amazing
+  connections and opportunities you'll discover!</p>
+
+<p>Welcome to the future of career development,<br />
+  <strong>The CareerBridge AI Team</strong></p>

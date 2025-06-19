@@ -7,6 +7,7 @@ import {
   IsInt,
   Min,
   Max,
+  Matches,
 } from 'class-validator';
 import { UserRole } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
@@ -14,7 +15,7 @@ import { ApiProperty } from '@nestjs/swagger';
 export class RegisterDto {
   @ApiProperty({
     description: 'The email of the user',
-    example: 'johndoe@gmail.com',
+    example: 'john.doe@university.edu',
   })
   @IsEmail()
   email: string;
@@ -37,7 +38,7 @@ export class RegisterDto {
 
   @ApiProperty({
     description: 'The password of the user',
-    example: 'password123',
+    example: 'SecurePassword123!',
   })
   @IsString()
   @MinLength(6)
@@ -55,7 +56,7 @@ export class RegisterDto {
 
   @ApiProperty({
     description: 'The university of the user',
-    example: 'Harvard University',
+    example: 'University of Technology',
     required: false,
   })
   @IsOptional()
@@ -81,4 +82,21 @@ export class RegisterDto {
   @Min(2020)
   @Max(2030)
   graduationYear?: number;
+}
+
+export class VerifyEmailDto {
+  @ApiProperty({ example: 'john.doe@university.edu' })
+  @IsEmail()
+  email: string;
+
+  @ApiProperty({ example: '123456' })
+  @IsString()
+  @Matches(/^\d{6}$/, { message: 'Verification code must be 6 digits' })
+  verificationCode: string;
+}
+
+export class ResendVerificationDto {
+  @ApiProperty({ example: 'john.doe@university.edu' })
+  @IsEmail()
+  email: string;
 }

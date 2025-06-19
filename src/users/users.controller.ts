@@ -6,78 +6,704 @@ import {
   Patch,
   Param,
   Delete,
-  NotFoundException,
+  Query,
+  UseGuards,
+  HttpStatus,
+  HttpCode,
+  BadRequestException,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+  ApiConsumes,
+} from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { JwtAuthGuard } from '../auth/guards/jwt.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UsersService } from './users.service';
-import { User, Prisma } from '@prisma/client';
+import {
+  UpdateUserProfileDto,
+  CreateEducationDto,
+  UpdateEducationDto,
+  CreateExperienceDto,
+  UpdateExperienceDto,
+  CreateSkillDto,
+  UpdateSkillDto,
+  UserSearchDto,
+  GetRecommendationsDto,
+  VerifyUserDto,
+  UpdateAccountStatusDto,
+  PaginationDto,
+  SoftDeleteUserDto,
+  HardDeleteUserDto,
+  SelfDeleteAccountDto,
+  CleanupOldUsersDto,
+  DeletedUserResponseDto,
+  HardDeleteResponseDto,
+  CleanupResponseDto,
+} from './dto/user.dto';
+import { UserRole } from '@prisma/client';
 
+@ApiTags('users')
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-//   @Post()
-//   async create(@Body() data: Prisma.UserCreateInput): Promise<User> {
-//     return this.usersService.create(data);
-//   }
+  // ============= PROFILE MANAGEMENT =============
 
-  // @Get()
-  // async findAll(): Promise<User[]> {
-  //   return this.usersService.findAll();
-  // }
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiResponse({ status: 200, description: 'Profile retrieved successfully' })
+  async getCurrentUser(@CurrentUser() user: any) {
+    const profile = await this.usersService.findById(user.id);
+    return {
+      success: true,
+      data: profile,
+    };
+  }
 
-  // @Get(':id')
-  // async findOne(@Param('id') id: string): Promise<User> {
-  //   const user = await this.usersService.findOne(id);
-  //   if (!user) {
-  //     throw new NotFoundException(`User with ID ${id} not found`);
-  //   }
-  //   return user;
-  // }
+  @Patch('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update current user profile' })
+  @ApiResponse({ status: 200, description: 'Profile updated successfully' })
+  async updateCurrentUser(
+    @CurrentUser() user: any,
+    @Body() updateData: UpdateUserProfileDto,
+  ) {
+    const updatedProfile = await this.usersService.updateProfile(
+      user.id,
+      updateData,
+    );
+    return {
+      success: true,
+      message: 'Profile updated successfully',
+      data: updatedProfile,
+    };
+  }
 
-  // @Get('clerk/:clerkId')
-  // async findByClerkId(@Param('clerkId') clerkId: string): Promise<User> {
-  //   const user = await this.usersService.findByClerkId(clerkId);
-  //   if (!user) {
-  //     throw new NotFoundException(`User with Clerk ID ${clerkId} not found`);
-  //   }
-  //   return user;
-  // }
+  @Post('me/avatar')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Upload user avatar' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('avatar'))
+  async uploadAvatar(@CurrentUser() user: any, @UploadedFile() file: any) {
+    // In a real app, you'd upload to cloud storage and get URL
+    const avatarUrl = `uploads/avatars/${file.filename}`;
+    const updatedUser = await this.usersService.uploadAvatar(
+      user.id,
+      avatarUrl,
+    );
 
-  // @Get('email/:email')
-  // async findByEmail(@Param('email') email: string): Promise<User> {
-  //   const user = await this.usersService.findByEmail(email);
-  //   if (!user) {
-  //     throw new NotFoundException(`User with email ${email} not found`);
-  //   }
-  //   return user;
-  // }
+    return {
+      success: true,
+      message: 'Avatar uploaded successfully',
+      data: { avatar: updatedUser.avatar },
+    };
+  }
 
-  // @Patch(':id')
-  // async update(
-  //   @Param('id') id: string,
-  //   @Body() data: Prisma.UserUpdateInput,
-  // ): Promise<User> {
-  //   return this.usersService.update(id, data);
-  // }
+  @Post('me/resume')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Upload user resume' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('resume'))
+  async uploadResume(@CurrentUser() user: any, @UploadedFile() file: any) {
+    // In a real app, you'd upload to cloud storage and get URL
+    const resumeUrl = `uploads/resumes/${file.filename}`;
+    const updatedUser = await this.usersService.uploadResume(
+      user.id,
+      resumeUrl,
+    );
 
-  // @Patch('clerk/:clerkId')
-  // async updateByClerkId(
-  //   @Param('clerkId') clerkId: string,
-  //   @Body() data: Prisma.UserUpdateInput,
-  // ): Promise<User> {
-  //   return this.usersService.updateByClerkId(clerkId, data);
-  // }
+    return {
+      success: true,
+      message: 'Resume uploaded successfully',
+      data: { resume: updatedUser.resume },
+    };
+  }
 
-  // @Delete(':id')
-  // async remove(@Param('id') id: string): Promise<User> {
-  //   return this.usersService.remove(id);
-  // }
+  // ============= EDUCATION MANAGEMENT =============
 
-  // @Post(':id/profile')
-  // async createProfile(
-  //   @Param('id') userId: string,
-  //   @Body() data: Prisma.ProfileCreateInput,
-  // ): Promise<User> {
-  //   return this.usersService.createProfile(userId, data);
-  // }
+  @Post('me/education')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Add education to profile' })
+  @ApiResponse({ status: 201, description: 'Education added successfully' })
+  async addEducation(
+    @CurrentUser() user: any,
+    @Body() educationData: CreateEducationDto,
+  ) {
+    const education = await this.usersService.addEducation(
+      user.id,
+      educationData,
+    );
+    return {
+      success: true,
+      message: 'Education added successfully',
+      data: education,
+    };
+  }
+
+  @Patch('me/education/:educationId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update education record' })
+  @ApiParam({ name: 'educationId', description: 'Education ID' })
+  async updateEducation(
+    @CurrentUser() user: any,
+    @Param('educationId') educationId: string,
+    @Body() updateData: UpdateEducationDto,
+  ) {
+    const education = await this.usersService.updateEducation(
+      user.id,
+      educationId,
+      updateData,
+    );
+    return {
+      success: true,
+      message: 'Education updated successfully',
+      data: education,
+    };
+  }
+
+  @Delete('me/education/:educationId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete education record' })
+  @ApiParam({ name: 'educationId', description: 'Education ID' })
+  async deleteEducation(
+    @CurrentUser() user: any,
+    @Param('educationId') educationId: string,
+  ) {
+    await this.usersService.deleteEducation(user.id, educationId);
+    return {
+      success: true,
+      message: 'Education deleted successfully',
+    };
+  }
+
+  // ============= EXPERIENCE MANAGEMENT =============
+
+  @Post('me/experience')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Add work experience to profile' })
+  @ApiResponse({ status: 201, description: 'Experience added successfully' })
+  async addExperience(
+    @CurrentUser() user: any,
+    @Body() experienceData: CreateExperienceDto,
+  ) {
+    const experience = await this.usersService.addExperience(
+      user.id,
+      experienceData,
+    );
+    return {
+      success: true,
+      message: 'Experience added successfully',
+      data: experience,
+    };
+  }
+
+  @Patch('me/experience/:experienceId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update experience record' })
+  @ApiParam({ name: 'experienceId', description: 'Experience ID' })
+  async updateExperience(
+    @CurrentUser() user: any,
+    @Param('experienceId') experienceId: string,
+    @Body() updateData: UpdateExperienceDto,
+  ) {
+    const experience = await this.usersService.updateExperience(
+      user.id,
+      experienceId,
+      updateData,
+    );
+    return {
+      success: true,
+      message: 'Experience updated successfully',
+      data: experience,
+    };
+  }
+
+  @Delete('me/experience/:experienceId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete experience record' })
+  @ApiParam({ name: 'experienceId', description: 'Experience ID' })
+  async deleteExperience(
+    @CurrentUser() user: any,
+    @Param('experienceId') experienceId: string,
+  ) {
+    await this.usersService.deleteExperience(user.id, experienceId);
+    return {
+      success: true,
+      message: 'Experience deleted successfully',
+    };
+  }
+
+  // ============= SKILLS MANAGEMENT =============
+
+  @Post('me/skills')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Add skill to profile' })
+  @ApiResponse({ status: 201, description: 'Skill added successfully' })
+  async addSkill(@CurrentUser() user: any, @Body() skillData: CreateSkillDto) {
+    const skill = await this.usersService.addSkill(user.id, skillData);
+    return {
+      success: true,
+      message: 'Skill added successfully',
+      data: skill,
+    };
+  }
+
+  @Patch('me/skills/:skillId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update skill' })
+  @ApiParam({ name: 'skillId', description: 'Skill ID' })
+  async updateSkill(
+    @CurrentUser() user: any,
+    @Param('skillId') skillId: string,
+    @Body() updateData: UpdateSkillDto,
+  ) {
+    const skill = await this.usersService.updateSkill(
+      user.id,
+      skillId,
+      updateData,
+    );
+    return {
+      success: true,
+      message: 'Skill updated successfully',
+      data: skill,
+    };
+  }
+
+  @Delete('me/skills/:skillId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete skill' })
+  @ApiParam({ name: 'skillId', description: 'Skill ID' })
+  async deleteSkill(
+    @CurrentUser() user: any,
+    @Param('skillId') skillId: string,
+  ) {
+    await this.usersService.deleteSkill(user.id, skillId);
+    return {
+      success: true,
+      message: 'Skill deleted successfully',
+    };
+  }
+
+  @Post('skills/:skillId/endorse')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Endorse a skill' })
+  @ApiParam({ name: 'skillId', description: 'Skill ID' })
+  async endorseSkill(
+    @CurrentUser() user: any,
+    @Param('skillId') skillId: string,
+  ) {
+    const skill = await this.usersService.endorseSkill(skillId, user.id);
+    return {
+      success: true,
+      message: 'Skill endorsed successfully',
+      data: skill,
+    };
+  }
+
+  // ============= USER SEARCH & DISCOVERY =============
+
+  @Get('search')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Search users with advanced filters' })
+  @ApiResponse({ status: 200, description: 'Users retrieved successfully' })
+  async searchUsers(@Query() searchDto: UserSearchDto) {
+    const result = await this.usersService.searchUsers(searchDto);
+    return {
+      success: true,
+      ...result,
+    };
+  }
+
+  @Get('students')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all students with filters' })
+  @ApiResponse({ status: 200, description: 'Students retrieved successfully' })
+  async getStudents(@Query() searchDto: UserSearchDto) {
+    const result = await this.usersService.getStudents(searchDto);
+    return {
+      success: true,
+      ...result,
+    };
+  }
+
+  @Get('alumni')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all alumni with filters' })
+  @ApiResponse({ status: 200, description: 'Alumni retrieved successfully' })
+  async getAlumni(@Query() searchDto: UserSearchDto) {
+    const result = await this.usersService.getAlumni(searchDto);
+    return {
+      success: true,
+      ...result,
+    };
+  }
+
+  @Get('employers')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all employers with filters' })
+  @ApiResponse({ status: 200, description: 'Employers retrieved successfully' })
+  async getEmployers(@Query() searchDto: UserSearchDto) {
+    const result = await this.usersService.getEmployers(searchDto);
+    return {
+      success: true,
+      ...result,
+    };
+  }
+
+  @Get('professors')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all professors with filters' })
+  @ApiResponse({
+    status: 200,
+    description: 'Professors retrieved successfully',
+  })
+  async getProfessors(@Query() searchDto: UserSearchDto) {
+    const result = await this.usersService.getProfessors(searchDto);
+    return {
+      success: true,
+      ...result,
+    };
+  }
+
+  // ============= RECOMMENDATIONS =============
+
+  @Post('recommendations')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get personalized user recommendations' })
+  @ApiResponse({
+    status: 200,
+    description: 'Recommendations retrieved successfully',
+  })
+  async getRecommendations(
+    @CurrentUser() user: any,
+    @Body() recommendationDto: GetRecommendationsDto,
+  ) {
+    const result = await this.usersService.getRecommendations(
+      user.id,
+      recommendationDto,
+    );
+    return {
+      success: true,
+      ...result,
+    };
+  }
+
+  // ============= PUBLIC PROFILES =============
+
+  @Get(':userId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get user profile by ID' })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'User profile retrieved successfully',
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async getUserProfile(@Param('userId') userId: string) {
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    return {
+      success: true,
+      data: user,
+    };
+  }
+
+  // ============= ADMIN OPERATIONS =============
+
+  @Patch(':userId/verify')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Verify or unverify a user (Admin only)' })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiResponse({ status: 200, description: 'User verification status updated' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  async verifyUser(
+    @CurrentUser() admin: any,
+    @Param('userId') userId: string,
+    @Body() verifyDto: Omit<VerifyUserDto, 'userId'>,
+  ) {
+    const result = await this.usersService.verifyUser(admin.id, {
+      userId,
+      ...verifyDto,
+    });
+    return {
+      success: true,
+      message: 'User verification status updated successfully',
+      data: result,
+    };
+  }
+
+  @Patch(':userId/status')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update user account status (Admin only)' })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiResponse({ status: 200, description: 'Account status updated' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  async updateAccountStatus(
+    @CurrentUser() admin: any,
+    @Param('userId') userId: string,
+    @Body() statusDto: UpdateAccountStatusDto,
+  ) {
+    const result = await this.usersService.updateAccountStatus(
+      admin.id,
+      userId,
+      statusDto,
+    );
+    return {
+      success: true,
+      message: 'Account status updated successfully',
+      data: result,
+    };
+  }
+
+  // ============= ANALYTICS & STATISTICS =============
+
+  @Get('admin/stats')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get user statistics (Admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Statistics retrieved successfully',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  async getUserStats(@CurrentUser() admin: any) {
+    // Verify admin role in service
+    await this.usersService.findByIdWithRole(admin.id, [
+      UserRole.ADMIN,
+      UserRole.SUPER_ADMIN,
+    ]);
+
+    const stats = await this.usersService.getUserStats();
+    return {
+      success: true,
+      data: stats,
+    };
+  }
+
+  // ============= USER DELETION OPERATIONS =============
+
+  @Delete('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete own account (self-delete)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Account deleted successfully',
+    type: DeletedUserResponseDto,
+  })
+  @ApiResponse({ status: 403, description: 'Invalid password' })
+  async selfDeleteAccount(
+    @CurrentUser() user: any,
+    @Body() selfDeleteDto: SelfDeleteAccountDto,
+  ) {
+    const result = await this.usersService.selfDeleteAccount(
+      user.id,
+      selfDeleteDto.password,
+      selfDeleteDto.reason,
+    );
+
+    return {
+      success: true,
+      ...result,
+    };
+  }
+
+  @Delete(':userId/soft')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Soft delete a user (Admin only)' })
+  @ApiParam({ name: 'userId', description: 'User ID to delete' })
+  @ApiResponse({
+    status: 200,
+    description: 'User soft deleted successfully',
+    type: DeletedUserResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({ status: 409, description: 'User is already deleted' })
+  async softDeleteUser(
+    @CurrentUser() admin: any,
+    @Param('userId') userId: string,
+    @Body() softDeleteDto: SoftDeleteUserDto,
+  ) {
+    const result = await this.usersService.softDeleteUser(
+      admin.id,
+      userId,
+      softDeleteDto.reason,
+    );
+
+    return {
+      success: true,
+      message: 'User soft deleted successfully',
+      data: result,
+    };
+  }
+
+  @Delete(':userId/hard')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Permanently delete a user (Super Admin only)',
+    description:
+      'This action is irreversible. Requires confirmation code in format: HARD_DELETE_{userId}_{YYYY-MM-DD}',
+  })
+  @ApiParam({ name: 'userId', description: 'User ID to permanently delete' })
+  @ApiResponse({
+    status: 200,
+    description: 'User permanently deleted successfully',
+    type: HardDeleteResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description:
+      'Forbidden - Super Admin access required or invalid confirmation code',
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async hardDeleteUser(
+    @CurrentUser() superAdmin: any,
+    @Param('userId') userId: string,
+    @Body() hardDeleteDto: HardDeleteUserDto,
+  ) {
+    const result = await this.usersService.hardDeleteUser(
+      superAdmin.id,
+      userId,
+      hardDeleteDto.confirmationCode,
+    );
+
+    return result;
+  }
+
+  @Patch(':userId/restore')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Restore a soft-deleted user (Admin only)' })
+  @ApiParam({ name: 'userId', description: 'User ID to restore' })
+  @ApiResponse({
+    status: 200,
+    description: 'User restored successfully',
+    type: DeletedUserResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({ status: 409, description: 'User is not deleted' })
+  async restoreUser(
+    @CurrentUser() admin: any,
+    @Param('userId') userId: string,
+  ) {
+    const result = await this.usersService.restoreUser(admin.id, userId);
+
+    return {
+      success: true,
+      message: 'User restored successfully',
+      data: result,
+    };
+  }
+
+  @Get('admin/deleted')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all deleted users (Admin only)' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiResponse({
+    status: 200,
+    description: 'Deleted users retrieved successfully',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  async getDeletedUsers(
+    @CurrentUser() admin: any,
+    @Query() pagination: PaginationDto,
+  ) {
+    const result = await this.usersService.getDeletedUsers(
+      admin.id,
+      pagination,
+    );
+
+    return {
+      success: true,
+      ...result,
+    };
+  }
+
+  @Post('admin/cleanup')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Cleanup old deleted users (Super Admin only)',
+    description:
+      'Permanently deletes users that have been soft-deleted for specified number of days',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Cleanup completed successfully',
+    type: CleanupResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Super Admin access required',
+  })
+  async cleanupOldDeletedUsers(
+    @CurrentUser() superAdmin: any,
+    @Body() cleanupDto: CleanupOldUsersDto,
+  ) {
+    const result = await this.usersService.cleanupOldDeletedUsers(
+      superAdmin.id,
+      cleanupDto.daysOld,
+    );
+
+    return result;
+  }
 }
