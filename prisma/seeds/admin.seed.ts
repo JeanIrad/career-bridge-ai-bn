@@ -17,6 +17,8 @@ async function main() {
       email: 'admin@careerbridge.ai',
       password: password,
       role: 'SUPER_ADMIN',
+      firstName: 'Super',
+      lastName: 'Admin',
     },
   });
 

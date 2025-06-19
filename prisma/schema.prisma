@@ -1,5 +1,3 @@
-
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,6 +12,8 @@ enum UserRole {
   PROFESSOR
   ALUMNI
   EMPLOYER
+  MENTOR
+  UNIVERSITY_STAFF
   OTHER
   SUPER_ADMIN
 }
@@ -24,21 +24,47 @@ enum AccountStatus {
   SUSPENDED
 }
 
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
 model User {
-  clerkId         String?           @unique
-  id              String           @id @default(uuid())
+  id             String           @id @default(uuid())
   email           String           @unique
   password        String
-  universityId    String?
+  universityId    String?  @unique
+  studentId       String?  @unique  // Student ID for verification
   isVerified      Boolean          @default(false)
   accountStatus   AccountStatus    @default(ACTIVE)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   lastLogin       DateTime?
   role            UserRole         @default(STUDENT)
-  profile         Profile?
+  firstName       String
+  lastName        String
+  phoneNumber     String?
+  address         String?
+  city            String?
+  state           String?
+  zipCode         String?
+  country         String?
+  dateOfBirth     DateTime?
+  gender          Gender? @default(OTHER)
+  nationality     String?
+  languages       String[]
+  skills          Skill[]
+  interests       String[]
+  gpa             Float?           // GPA for filtering
+  graduationYear  Int?             // Graduation year for filtering
+  availability    String?          // Job availability status
+  university      String?          // University name
+  major           String?          // Major for filtering
+  // profile         Profile?
   posts           Post[]
   events          Event[]
+  deletedAt       DateTime? 
   jobApplications JobApplication[]
   messages        Message[]
   companies       Company[]
@@ -46,27 +72,42 @@ model User {
   notifications   Notification[]
   eventRegistrations EventRegistration[]
   chat              Chat[]
+  comments          Comment[]
+  education         Education[]
+  experiences       Experience[]
+  resume            String?
+  headline          String?
+  bio               String?
+  avatar            String?
+  socialLinks       Json?
+  visibility        Visibility   @default(PUBLIC)
+  isPublic          Boolean      @default(true)
+  
+  // ChatGroup relations
+  ownedGroups       ChatGroup[]  @relation("GroupOwner")
+  groupMemberships  ChatGroup[]  @relation("GroupMembers")
+  groupMessages     GroupMessage[]
 }
 
 
 
-model Profile {
-  id            String       @id @default(uuid())
-  firstName     String
-  lastName      String
-  headline      String?
-  bio           String?
-  avatar        String?
-  contactNumber String?
-  location      String?
-  socialLinks   Json?
-  visibility    Visibility   @default(PUBLIC)
-  user          User         @relation(fields: [userId], references: [id])
-  userId        String       @unique
-  education     Education[]
-  experiences   Experience[]
-  skills        Skill[]
-}
+// model Profile {
+//   id            String       @id @default(uuid())
+//   firstName     String
+//   lastName      String
+//   headline      String?
+//   bio           String?
+//   avatar        String?
+//   contactNumber String?
+//   location      String?
+//   socialLinks   Json?
+//   visibility    Visibility   @default(PUBLIC)
+//   user          User         @relation(fields: [userId], references: [id])
+//   userId        String       @unique
+//   education     Education[]
+//   experiences   Experience[]
+//   skills        Skill[]
+// }
 
 model Education {
   id          String   @id @default(uuid())
@@ -77,8 +118,8 @@ model Education {
   endDate     DateTime?
   grade       String?
   activities  String[]
-  profile     Profile  @relation(fields: [profileId], references: [id])
-  profileId   String
+  user     User  @relation(fields: [userId], references: [id])
+  userId   String
 }
 
 model Experience {
@@ -92,8 +133,8 @@ model Experience {
   skills      String[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  profile     Profile  @relation(fields: [profileId], references: [id])
-  profileId   String
+  user     User  @relation(fields: [userId], references: [id])
+  userId   String
   company     Company  @relation(fields: [companyId], references: [id])
   companyId   String
 }
@@ -102,8 +143,8 @@ model Skill {
   id          String   @id @default(uuid())
   name        String
   endorsements Int?
-  profile     Profile  @relation(fields: [profileId], references: [id])
-  profileId   String
+  user     User  @relation(fields: [userId], references: [id])
+  userId   String
 }
 
 model Company {
@@ -179,6 +220,9 @@ model Comment {
   updatedAt DateTime @updatedAt
   post      Post     @relation(fields: [postId], references: [id])
   postId    String
+
+  user User @relation(fields: [userId], references: [id])
+  userId String
 }
 
 model Forum {
@@ -247,6 +291,35 @@ model Notification {
   link      String?
   user      User     @relation(fields: [userId], references: [id])
   userId    String
+}
+model ChatGroup {
+  id          String         @id @default(uuid())
+  name        String         @unique
+  description String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  isActive    Boolean        @default(true)
+  
+  // Relations
+  members     User[]         @relation("GroupMembers")
+  owner       User           @relation("GroupOwner", fields: [ownerId], references: [id])
+  ownerId     String
+  messages    GroupMessage[]
+  deletedAt   DateTime?
+}
+
+model GroupMessage {
+  id        String    @id @default(uuid())
+  content   String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  isEdited  Boolean   @default(false)
+  
+  // Relations
+  group     ChatGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId   String
+  sender    User      @relation(fields: [senderId], references: [id])
+  senderId  String
 }
 
 enum Visibility {

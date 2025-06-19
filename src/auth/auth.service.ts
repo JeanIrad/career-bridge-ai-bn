@@ -1,30 +1,3 @@
-// import { Injectable } from '@nestjs/common';
-// import { PrismaService } from 'prisma/prisma.service';
-// import { ClerkService } from './clerk.service';
-// import { CreateUserDto } from './dto/create-user.dto';
-// import { v4 as uuidv4 } from 'uuid';
-
-// @Injectable()
-// export class AuthService {
-//   constructor(
-//     private readonly prisma: PrismaService,
-//     private readonly clerk: ClerkService,
-//   ) {}
-//   async register(dto: CreateUserDto) {
-// //     const clerkUser = await this.clerk.createUser(dto);
-
-// //     const user = await this.prisma.user.create({
-// //       data: {
-// //         id: uuidv4(),
-// //         email: dto.email,
-// //         name: dto.name,
-// //         clerkId: clerkUser.id,
-// //       },
-// //     });
-
-// //     return { user };
-//   }
-// }
 import {
   Injectable,
   UnauthorizedException,
