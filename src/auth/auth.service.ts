@@ -146,6 +146,13 @@ export class AuthService {
       console.error('Failed to send welcome email:', error);
     }
 
+    // Create welcome notification
+    try {
+      await this.createWelcomeNotification(user.id, user.firstName, user.role);
+    } catch (error) {
+      console.error('Failed to create welcome notification:', error);
+    }
+
     const { password, ...userWithoutPassword } = user;
 
     return {
@@ -502,5 +509,78 @@ export class AuthService {
         type,
       },
     });
+  }
+
+  /**
+   * Create welcome notification for new users
+   */
+  private async createWelcomeNotification(
+    userId: string,
+    firstName: string,
+    role: string,
+  ): Promise<void> {
+    try {
+      const roleSpecificContent = this.getWelcomeContentByRole(role);
+      const dashboardLink = this.getDashboardLinkByRole(role);
+
+      await this.prisma.notification.create({
+        data: {
+          title: `Welcome to CareerBridge AI, ${firstName}! 🎉`,
+          content: roleSpecificContent,
+          type: 'WELCOME',
+          priority: 'HIGH',
+          userId,
+          link: dashboardLink,
+        },
+      });
+    } catch (error) {
+      console.error('Failed to create welcome notification:', error);
+    }
+  }
+
+  /**
+   * Get welcome content based on user role
+   */
+  private getWelcomeContentByRole(role: string): string {
+    const welcomeMessages: Record<string, string> = {
+      STUDENT:
+        'Explore job opportunities, connect with alumni, and build your professional network!',
+      ALUMNI:
+        'Welcome back! Share your experience and help current students succeed.',
+      EMPLOYER:
+        'Start posting jobs and discover talented candidates from our community.',
+      PROFESSOR:
+        'Manage your students and create engaging academic experiences.',
+      MENTOR:
+        'Begin mentoring students and make a lasting impact on their careers.',
+      UNIVERSITY_STAFF:
+        'Help manage your university community and support student success.',
+      ADMIN:
+        'Welcome to the admin dashboard. You have full access to platform management.',
+      SUPER_ADMIN: 'Welcome, Super Admin. You have complete system control.',
+      OTHER:
+        'Welcome to CareerBridge AI! Explore all the features available to you.',
+    };
+
+    return welcomeMessages[role] || welcomeMessages.OTHER;
+  }
+
+  /**
+   * Get dashboard link based on user role
+   */
+  private getDashboardLinkByRole(role: string): string {
+    const dashboardLinks: Record<string, string> = {
+      STUDENT: '/dashboard/student',
+      ALUMNI: '/dashboard/student',
+      EMPLOYER: '/dashboard/employer',
+      PROFESSOR: '/dashboard/university',
+      MENTOR: '/dashboard/mentor',
+      UNIVERSITY_STAFF: '/dashboard/university',
+      ADMIN: '/dashboard/admin',
+      SUPER_ADMIN: '/dashboard/admin',
+      OTHER: '/dashboard',
+    };
+
+    return dashboardLinks[role] || '/dashboard';
   }
 }

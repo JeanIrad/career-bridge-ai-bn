@@ -434,13 +434,19 @@ model Notification {
   title     String
   content   String
   type      String
+  priority  String?  @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
   link      String?
+  metadata  Json?    // Additional data for the notification
   user      User     @relation(fields: [userId], references: [id])
   userId    String
   deletedAt DateTime?
   updatedAt DateTime @updatedAt
+  
+  @@index([userId, read])
+  @@index([userId, type])
+  @@index([createdAt])
 }
 model ChatGroup {
   id          String         @id @default(uuid())

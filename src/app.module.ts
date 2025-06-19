@@ -8,6 +8,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ChatsModule } from './chats/chats.module';
 import { MailModule } from './mail/mail.module';
 import { UploadModule } from './upload/upload.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { UploadModule } from './upload/upload.module';
     ChatsModule,
     MailModule,
     UploadModule, // File upload with Cloudinary
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
