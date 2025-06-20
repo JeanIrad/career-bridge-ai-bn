@@ -261,53 +261,98 @@ export class UserSearchFiltersDto {
   @IsOptional()
   @IsArray()
   @IsEnum(UserRole, { each: true })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') return [value];
+    return value;
+  })
   roles?: UserRole[];
 
   @ApiPropertyOptional({ example: ['JavaScript', 'Python'] })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') return [value];
+    return value;
+  })
   skills?: string[];
 
   @ApiPropertyOptional({ example: ['New York', 'San Francisco'] })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') return [value];
+    return value;
+  })
   cities?: string[];
 
   @ApiPropertyOptional({ example: ['USA', 'Canada'] })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') return [value];
+    return value;
+  })
   countries?: string[];
 
   @ApiPropertyOptional({ example: ['Computer Science', 'Engineering'] })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') return [value];
+    return value;
+  })
   fields?: string[];
 
   @ApiPropertyOptional({ example: ['Harvard', 'MIT'] })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') return [value];
+    return value;
+  })
   institutions?: string[];
 
   @ApiPropertyOptional({ example: ['Harvard University', 'MIT'] })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') return [value];
+    return value;
+  })
   universities?: string[];
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
   isVerified?: boolean;
 
   @ApiPropertyOptional({ example: [2024, 2025] })
   @IsOptional()
   @IsArray()
   @IsInt({ each: true })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value.map((v) => parseInt(v, 10));
+    if (typeof value === 'string') return [parseInt(value, 10)];
+    return value;
+  })
   graduationYears?: number[];
 
   @ApiPropertyOptional({ example: 3.5, minimum: 0.0, maximum: 4.0 })
@@ -330,30 +375,51 @@ export class UserSearchFiltersDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') return [value];
+    return value;
+  })
   availability?: string[];
 
   @ApiPropertyOptional({ example: 2 })
   @IsOptional()
   @IsInt()
   @Min(0)
+  @Transform(({ value }) =>
+    typeof value === 'string' ? parseInt(value, 10) : value,
+  )
   minExperience?: number;
 
   @ApiPropertyOptional({ example: 10 })
   @IsOptional()
   @IsInt()
   @Min(0)
+  @Transform(({ value }) =>
+    typeof value === 'string' ? parseInt(value, 10) : value,
+  )
   maxExperience?: number;
 
   @ApiPropertyOptional({ enum: Visibility, isArray: true })
   @IsOptional()
   @IsArray()
   @IsEnum(Visibility, { each: true })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') return [value];
+    return value;
+  })
   visibility?: Visibility[];
 
   @ApiPropertyOptional({ example: ['STU2024001', 'STU2024002'] })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') return [value];
+    return value;
+  })
   studentIds?: string[];
 }
 
@@ -385,6 +451,183 @@ export class PaginationDto {
 }
 
 export class UserSearchDto extends PaginationDto {
+  @ApiPropertyOptional({ example: 'john' })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiPropertyOptional({ enum: UserRole, isArray: true })
+  @IsOptional()
+  @IsArray()
+  @IsEnum(UserRole, { each: true })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') return [value];
+    return value;
+  })
+  roles?: UserRole[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  isVerified?: boolean;
+
+  @ApiPropertyOptional({ example: ['JavaScript', 'Python'] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') return [value];
+    return value;
+  })
+  skills?: string[];
+
+  @ApiPropertyOptional({ example: ['New York', 'San Francisco'] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') return [value];
+    return value;
+  })
+  cities?: string[];
+
+  @ApiPropertyOptional({ example: ['USA', 'Canada'] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') return [value];
+    return value;
+  })
+  countries?: string[];
+
+  @ApiPropertyOptional({ example: ['Computer Science', 'Engineering'] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') return [value];
+    return value;
+  })
+  fields?: string[];
+
+  @ApiPropertyOptional({ example: ['Harvard', 'MIT'] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') return [value];
+    return value;
+  })
+  institutions?: string[];
+
+  @ApiPropertyOptional({ example: ['Harvard University', 'MIT'] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') return [value];
+    return value;
+  })
+  universities?: string[];
+
+  @ApiPropertyOptional({ example: [2024, 2025] })
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value.map((v) => parseInt(v, 10));
+    if (typeof value === 'string') return [parseInt(value, 10)];
+    return value;
+  })
+  graduationYears?: number[];
+
+  @ApiPropertyOptional({ example: 3.5, minimum: 0.0, maximum: 4.0 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0.0)
+  @Max(4.0)
+  @Transform(({ value }) =>
+    typeof value === 'string' ? parseFloat(value) : value,
+  )
+  minGpa?: number;
+
+  @ApiPropertyOptional({ example: 4.0, minimum: 0.0, maximum: 4.0 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0.0)
+  @Max(4.0)
+  @Transform(({ value }) =>
+    typeof value === 'string' ? parseFloat(value) : value,
+  )
+  maxGpa?: number;
+
+  @ApiPropertyOptional({
+    example: ['Available for full-time', 'Available for internship'],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') return [value];
+    return value;
+  })
+  availability?: string[];
+
+  @ApiPropertyOptional({ example: 2 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Transform(({ value }) =>
+    typeof value === 'string' ? parseInt(value, 10) : value,
+  )
+  minExperience?: number;
+
+  @ApiPropertyOptional({ example: 10 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Transform(({ value }) =>
+    typeof value === 'string' ? parseInt(value, 10) : value,
+  )
+  maxExperience?: number;
+
+  @ApiPropertyOptional({ enum: Visibility, isArray: true })
+  @IsOptional()
+  @IsArray()
+  @IsEnum(Visibility, { each: true })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') return [value];
+    return value;
+  })
+  visibility?: Visibility[];
+
+  @ApiPropertyOptional({ example: ['STU2024001', 'STU2024002'] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') return [value];
+    return value;
+  })
+  studentIds?: string[];
+
+  // Keep the old filters property for backward compatibility but make it optional
   @ApiPropertyOptional()
   @IsOptional()
   @ValidateNested()

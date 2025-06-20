@@ -224,7 +224,10 @@ export class AuthService {
         statusMessages[user.accountStatus] || 'Account access is restricted.',
       );
     }
-
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() },
+    });
     const payload: JwtPayload = {
       id: user.id,
       email: user.email,

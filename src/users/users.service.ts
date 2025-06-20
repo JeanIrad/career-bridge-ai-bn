@@ -394,15 +394,58 @@ export class UsersService {
     searchDto: UserSearchDto,
   ): Promise<PaginatedUsersResponseDto> {
     const {
-      filters,
       page = 1,
       limit = 10,
       sortBy = 'createdAt',
       sortOrder = 'desc',
+      // Extract direct search parameters
+      search,
+      roles,
+      isVerified,
+      skills,
+      cities,
+      countries,
+      fields,
+      institutions,
+      universities,
+      graduationYears,
+      minGpa,
+      maxGpa,
+      availability,
+      minExperience,
+      maxExperience,
+      visibility,
+      studentIds,
+      // Keep backward compatibility with filters
+      filters,
     } = searchDto;
 
     const skip = (page - 1) * limit;
-    const where = this.buildEnhancedSearchWhereClause(filters);
+
+    // Merge direct parameters with filters for backward compatibility
+    const combinedFilters: UserSearchFiltersDto = {
+      search: search || filters?.search,
+      roles: roles || filters?.roles,
+      isVerified: isVerified !== undefined ? isVerified : filters?.isVerified,
+      skills: skills || filters?.skills,
+      cities: cities || filters?.cities,
+      countries: countries || filters?.countries,
+      fields: fields || filters?.fields,
+      institutions: institutions || filters?.institutions,
+      universities: universities || filters?.universities,
+      graduationYears: graduationYears || filters?.graduationYears,
+      minGpa: minGpa !== undefined ? minGpa : filters?.minGpa,
+      maxGpa: maxGpa !== undefined ? maxGpa : filters?.maxGpa,
+      availability: availability || filters?.availability,
+      minExperience:
+        minExperience !== undefined ? minExperience : filters?.minExperience,
+      maxExperience:
+        maxExperience !== undefined ? maxExperience : filters?.maxExperience,
+      visibility: visibility || filters?.visibility,
+      studentIds: studentIds || filters?.studentIds,
+    };
+
+    const where = this.buildEnhancedSearchWhereClause(combinedFilters);
 
     const [users, total] = await Promise.all([
       this.prisma.user.findMany({

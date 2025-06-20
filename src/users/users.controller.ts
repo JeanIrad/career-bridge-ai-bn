@@ -13,6 +13,7 @@ import {
   BadRequestException,
   UseInterceptors,
   UploadedFile,
+  UsePipes,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -26,6 +27,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { QueryArrayTransformPipe } from '../common/pipes/query-array-transform.pipe';
 import { UsersService } from './users.service';
 import {
   UpdateUserProfileDto,
@@ -330,6 +332,7 @@ export class UsersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Search users with advanced filters' })
   @ApiResponse({ status: 200, description: 'Users retrieved successfully' })
+  @UsePipes(new QueryArrayTransformPipe())
   async searchUsers(@Query() searchDto: UserSearchDto) {
     const result = await this.usersService.searchUsers(searchDto);
     return {
@@ -343,6 +346,7 @@ export class UsersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all students with filters' })
   @ApiResponse({ status: 200, description: 'Students retrieved successfully' })
+  @UsePipes(new QueryArrayTransformPipe())
   async getStudents(@Query() searchDto: UserSearchDto) {
     const result = await this.usersService.getStudents(searchDto);
     return {
@@ -356,6 +360,7 @@ export class UsersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all alumni with filters' })
   @ApiResponse({ status: 200, description: 'Alumni retrieved successfully' })
+  @UsePipes(new QueryArrayTransformPipe())
   async getAlumni(@Query() searchDto: UserSearchDto) {
     const result = await this.usersService.getAlumni(searchDto);
     return {
@@ -369,6 +374,7 @@ export class UsersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all employers with filters' })
   @ApiResponse({ status: 200, description: 'Employers retrieved successfully' })
+  @UsePipes(new QueryArrayTransformPipe())
   async getEmployers(@Query() searchDto: UserSearchDto) {
     const result = await this.usersService.getEmployers(searchDto);
     return {
@@ -385,6 +391,7 @@ export class UsersController {
     status: 200,
     description: 'Professors retrieved successfully',
   })
+  @UsePipes(new QueryArrayTransformPipe())
   async getProfessors(@Query() searchDto: UserSearchDto) {
     const result = await this.usersService.getProfessors(searchDto);
     return {
@@ -442,6 +449,33 @@ export class UsersController {
   }
 
   // ============= ADMIN OPERATIONS =============
+
+  @Get('admin/users')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all users for admin management' })
+  @ApiResponse({ status: 200, description: 'Users retrieved successfully' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  @UsePipes(new QueryArrayTransformPipe())
+  async getAdminUsers(
+    @CurrentUser() admin: any,
+    @Query() searchDto: UserSearchDto,
+  ) {
+    // Verify admin role
+    await this.usersService.findByIdWithRole(admin.id, [
+      UserRole.ADMIN,
+      UserRole.SUPER_ADMIN,
+    ]);
+
+    const result = await this.usersService.searchUsers(searchDto);
+    return {
+      success: true,
+      ...result,
+    };
+  }
 
   @Patch(':userId/verify')
   @UseGuards(JwtAuthGuard)
