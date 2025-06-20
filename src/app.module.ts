@@ -12,6 +12,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { RecommendationModule } from './recommendation/recommendation.module';
 import { AiModule } from './ai/ai.module';
 import { CacheModule } from './cache/cache.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 import { RecommendationController } from './recommendation/recommendation.controller';
 
 @Module({
@@ -29,6 +30,7 @@ import { RecommendationController } from './recommendation/recommendation.contro
     RecommendationModule,
     AiModule,
     CacheModule,
+    AnalyticsModule, // Comprehensive analytics and reporting
   ],
   controllers: [AppController, RecommendationController],
   providers: [AppService],
