@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { MulterModule } from '@nestjs/platform-express';
 import { UploadService } from './upload.service';
 import { UploadController } from './upload.controller';
+import { DocumentVerificationController } from './document-verification.controller';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 
@@ -12,13 +13,14 @@ import { AuthModule } from '../auth/auth.module';
     PrismaModule,
     AuthModule,
     MulterModule.register({
-      dest: './uploads', // Temporary storage before uploading to Cloudinary
+      dest: './uploads/temp', // Temporary storage before uploading to Cloudinary
       limits: {
-        fileSize: 10 * 1024 * 1024, // 10MB limit
+        fileSize: 50 * 1024 * 1024, // 50MB limit for portfolios
+        files: 10, // Maximum 10 files for bulk upload
       },
     }),
   ],
-  controllers: [UploadController],
+  controllers: [UploadController, DocumentVerificationController],
   providers: [UploadService],
   exports: [UploadService],
 })

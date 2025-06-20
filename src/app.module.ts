@@ -8,6 +8,11 @@ import { ConfigModule } from '@nestjs/config';
 import { ChatsModule } from './chats/chats.module';
 import { MailModule } from './mail/mail.module';
 import { UploadModule } from './upload/upload.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { RecommendationModule } from './recommendation/recommendation.module';
+import { AiModule } from './ai/ai.module';
+import { CacheModule } from './cache/cache.module';
+import { RecommendationController } from './recommendation/recommendation.controller';
 
 @Module({
   imports: [
@@ -20,8 +25,12 @@ import { UploadModule } from './upload/upload.module';
     ChatsModule,
     MailModule,
     UploadModule, // File upload with Cloudinary
+    NotificationsModule,
+    RecommendationModule,
+    AiModule,
+    CacheModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, RecommendationController],
   providers: [AppService],
 })
 export class AppModule {}

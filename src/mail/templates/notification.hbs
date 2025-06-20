@@ -1,0 +1,30 @@
+<p>Hello {{firstName}},</p>
+
+<p>You have a new notification from CareerBridge AI:</p>
+
+<div class='alert alert-info'>
+  <strong>{{title}}</strong><br />
+  {{content}}
+</div>
+
+{{#if link}}
+  <div class='text-center' style='margin: 30px 0;'>
+    <a href='{{actionUrl}}' class='button'>View Details</a>
+  </div>
+{{/if}}
+
+<div class='security-info'>
+  <div class='security-info-title'>📢 Notification Details</div>
+  <div class='security-info-content'>
+    <strong>Type:</strong>
+    {{type}}<br />
+    <strong>Time:</strong>
+    {{formatDate createdAt}}<br />
+    You can manage your notification preferences in your account settings.
+  </div>
+</div>
+
+<p>Stay connected and never miss important updates!</p>
+
+<p>Best regards,<br />
+  <strong>The CareerBridge AI Team</strong></p>

@@ -94,11 +94,23 @@ model User {
   backupCodes       BackupCode[]
   securityLogs      SecurityLog[]
   trustedDevices    TrustedDevice[]
-  
+  jobRecommendations JobRecommendation[]
   // Document uploads
   documents         Document[]
 }
-
+model JobRecommendation {
+  id        String   @id @default(uuid())
+  userId    String
+  jobId     String
+  score     Float    // AI confidence score (0-1)
+  reasons   Json?    // JSON array of matching reasons
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id])
+  job       Job      @relation(fields: [jobId], references: [id])
+  
+  @@unique([userId, jobId])
+}
 // Enhanced Authentication Models
 model VerificationCode {
   id        String   @id @default(uuid())
@@ -214,23 +226,7 @@ model LoginAttempt {
   @@index([ipAddress, timestamp])
 }
 
-// model Profile {
-//   id            String       @id @default(uuid())
-//   firstName     String
-//   lastName      String
-//   headline      String?
-//   bio           String?
-//   avatar        String?
-//   contactNumber String?
-//   location      String?
-//   socialLinks   Json?
-//   visibility    Visibility   @default(PUBLIC)
-//   user          User         @relation(fields: [userId], references: [id])
-//   userId        String       @unique
-//   education     Education[]
-//   experiences   Experience[]
-//   skills        Skill[]
-// }
+
 
 model Education {
   id          String   @id @default(uuid())
@@ -314,6 +310,7 @@ model Job {
   postedById        String
   applications      JobApplication[]
   deletedAt DateTime?
+  jobRecommendations JobRecommendation[]
 }
 
 model JobApplication {
@@ -434,13 +431,19 @@ model Notification {
   title     String
   content   String
   type      String
+  priority  String?  @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
   link      String?
+  metadata  Json?    // Additional data for the notification
   user      User     @relation(fields: [userId], references: [id])
   userId    String
   deletedAt DateTime?
   updatedAt DateTime @updatedAt
+  
+  @@index([userId, read])
+  @@index([userId, type])
+  @@index([createdAt])
 }
 model ChatGroup {
   id          String         @id @default(uuid())
@@ -539,8 +542,8 @@ enum DocumentType {
   PORTFOLIO
   COVER_LETTER
   RECOMMENDATION_LETTER
-  PROFILE_PICTURE
   COMPANY_LOGO
+  PROFILE_PICTURE
   OTHER
 }
 
