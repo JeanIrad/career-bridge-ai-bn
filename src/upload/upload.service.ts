@@ -381,6 +381,167 @@ export class UploadService {
   }
 
   /**
+   * Upload portfolio
+   */
+  async uploadPortfolio(
+    userId: string,
+    file: Express.Multer.File,
+  ): Promise<Document> {
+    this.validatePortfolioFile(file);
+
+    const folder = `career-bridge/portfolios/${userId}`;
+    const uploadResult = await this.uploadToCloudinary(
+      file.path,
+      folder,
+      'auto',
+      {
+        allowed_formats: ['pdf', 'jpg', 'jpeg', 'png', 'zip', 'doc', 'docx'],
+      },
+    );
+
+    const document = await this.prisma.document.create({
+      data: {
+        userId,
+        documentType: DocumentType.PORTFOLIO,
+        originalName: file.originalname,
+        cloudinaryPublicId: uploadResult.public_id,
+        cloudinaryUrl: uploadResult.secure_url,
+        fileSize: uploadResult.bytes,
+        mimeType: file.mimetype,
+        isVerified: false,
+        verificationStatus: VerificationStatus.PENDING,
+      },
+    });
+
+    return document;
+  }
+
+  /**
+   * Upload cover letter
+   */
+  async uploadCoverLetter(
+    userId: string,
+    file: Express.Multer.File,
+  ): Promise<Document> {
+    this.validateDocumentFile(file);
+
+    const folder = `career-bridge/cover-letters/${userId}`;
+    const uploadResult = await this.uploadToCloudinary(
+      file.path,
+      folder,
+      'raw',
+      {
+        allowed_formats: ['pdf', 'doc', 'docx', 'txt'],
+      },
+    );
+
+    const document = await this.prisma.document.create({
+      data: {
+        userId,
+        documentType: DocumentType.COVER_LETTER,
+        originalName: file.originalname,
+        cloudinaryPublicId: uploadResult.public_id,
+        cloudinaryUrl: uploadResult.secure_url,
+        fileSize: uploadResult.bytes,
+        mimeType: file.mimetype,
+        isVerified: false,
+        verificationStatus: VerificationStatus.PENDING,
+      },
+    });
+
+    return document;
+  }
+
+  /**
+   * Upload recommendation letter
+   */
+  async uploadRecommendationLetter(
+    userId: string,
+    file: Express.Multer.File,
+  ): Promise<Document> {
+    this.validateDocumentFile(file);
+
+    const folder = `career-bridge/recommendation-letters/${userId}`;
+    const uploadResult = await this.uploadToCloudinary(
+      file.path,
+      folder,
+      'raw',
+      {
+        allowed_formats: ['pdf', 'doc', 'docx'],
+      },
+    );
+
+    const document = await this.prisma.document.create({
+      data: {
+        userId,
+        documentType: DocumentType.RECOMMENDATION_LETTER,
+        originalName: file.originalname,
+        cloudinaryPublicId: uploadResult.public_id,
+        cloudinaryUrl: uploadResult.secure_url,
+        fileSize: uploadResult.bytes,
+        mimeType: file.mimetype,
+        isVerified: false,
+        verificationStatus: VerificationStatus.PENDING,
+      },
+    });
+
+    return document;
+  }
+
+  /**
+   * Upload multiple documents at once
+   */
+  async uploadMultipleDocuments(
+    userId: string,
+    files: Express.Multer.File[],
+    documentType: DocumentType,
+  ): Promise<Document[]> {
+    const documents: Document[] = [];
+
+    for (const file of files) {
+      let document: Document;
+
+      switch (documentType) {
+        case DocumentType.PORTFOLIO:
+          document = await this.uploadPortfolio(userId, file);
+          break;
+        case DocumentType.COVER_LETTER:
+          document = await this.uploadCoverLetter(userId, file);
+          break;
+        case DocumentType.RECOMMENDATION_LETTER:
+          document = await this.uploadRecommendationLetter(userId, file);
+          break;
+        case DocumentType.DEGREE_CERTIFICATE:
+          document = await this.uploadDegreeCertificate(userId, file);
+          break;
+        case DocumentType.TRANSCRIPT:
+          document = await this.uploadTranscript(userId, file);
+          break;
+        case DocumentType.ID_DOCUMENT:
+          document = await this.uploadIdDocument(userId, file);
+          break;
+        case DocumentType.BUSINESS_LICENSE:
+          document = await this.uploadBusinessLicense(userId, file);
+          break;
+        case DocumentType.COMPANY_REGISTRATION:
+          document = await this.uploadCompanyRegistration(userId, file);
+          break;
+        case DocumentType.COMPANY_LOGO:
+          document = await this.uploadCompanyLogo(userId, file);
+          break;
+        default:
+          throw new BadRequestException(
+            `Unsupported document type: ${documentType}`,
+          );
+      }
+
+      documents.push(document);
+    }
+
+    return documents;
+  }
+
+  /**
    * Get user documents
    */
   async getUserDocuments(
@@ -459,6 +620,92 @@ export class UploadService {
         },
       },
       orderBy: { uploadedAt: 'asc' },
+    });
+  }
+
+  /**
+   * Get document statistics for user
+   */
+  async getDocumentStatistics(userId: string): Promise<{
+    totalDocuments: number;
+    verifiedDocuments: number;
+    pendingDocuments: number;
+    documentsByType: { [key in DocumentType]?: number };
+    storageUsed: number; // in bytes
+  }> {
+    const documents = await this.prisma.document.findMany({
+      where: { userId, deletedAt: null },
+      select: {
+        documentType: true,
+        verificationStatus: true,
+        fileSize: true,
+      },
+    });
+
+    const stats = {
+      totalDocuments: documents.length,
+      verifiedDocuments: documents.filter(
+        (d) => d.verificationStatus === VerificationStatus.APPROVED,
+      ).length,
+      pendingDocuments: documents.filter(
+        (d) => d.verificationStatus === VerificationStatus.PENDING,
+      ).length,
+      documentsByType: {} as { [key in DocumentType]?: number },
+      storageUsed: documents.reduce((total, doc) => total + doc.fileSize, 0),
+    };
+
+    // Count documents by type
+    for (const doc of documents) {
+      stats.documentsByType[doc.documentType] =
+        (stats.documentsByType[doc.documentType] || 0) + 1;
+    }
+
+    return stats;
+  }
+
+  /**
+   * Bulk delete documents
+   */
+  async bulkDeleteDocuments(
+    userId: string,
+    documentIds: string[],
+  ): Promise<void> {
+    // Get documents to delete (ensure they belong to the user)
+    const documents = await this.prisma.document.findMany({
+      where: {
+        id: { in: documentIds },
+        userId,
+        deletedAt: null,
+      },
+    });
+
+    if (documents.length !== documentIds.length) {
+      throw new BadRequestException(
+        'Some documents not found or do not belong to user',
+      );
+    }
+
+    // Delete from Cloudinary
+    for (const document of documents) {
+      try {
+        await cloudinary.uploader.destroy(document.cloudinaryPublicId);
+      } catch (error) {
+        this.logger.warn(
+          `Failed to delete from Cloudinary: ${document.cloudinaryPublicId}`,
+          error,
+        );
+      }
+    }
+
+    // Soft delete from database
+    await this.prisma.document.updateMany({
+      where: {
+        id: { in: documentIds },
+        userId,
+      },
+      data: {
+        deletedAt: new Date(),
+      },
     });
   }
 
@@ -588,6 +835,60 @@ export class UploadService {
     if (file.size > 5 * 1024 * 1024) {
       // 5MB
       throw new BadRequestException('Image file size must be less than 5MB');
+    }
+  }
+
+  /**
+   * Validate portfolio file
+   */
+  private validatePortfolioFile(file: Express.Multer.File): void {
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/zip',
+      'application/x-zip-compressed',
+      'image/jpeg',
+      'image/png',
+      'image/jpg',
+    ];
+
+    if (!allowedTypes.includes(file.mimetype)) {
+      throw new BadRequestException(
+        'Invalid file type. Portfolio must be PDF, DOC, DOCX, ZIP, JPG, or PNG',
+      );
+    }
+
+    const maxSize = 50 * 1024 * 1024; // 50MB for portfolios
+    if (file.size > maxSize) {
+      throw new BadRequestException(
+        'Portfolio file too large. Maximum size is 50MB',
+      );
+    }
+  }
+
+  /**
+   * Validate document file (for cover letters, recommendation letters, etc.)
+   */
+  private validateDocumentFile(file: Express.Multer.File): void {
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
+    ];
+
+    if (!allowedTypes.includes(file.mimetype)) {
+      throw new BadRequestException(
+        'Invalid file type. Document must be PDF, DOC, DOCX, or TXT',
+      );
+    }
+
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      throw new BadRequestException(
+        'Document file too large. Maximum size is 10MB',
+      );
     }
   }
 }
