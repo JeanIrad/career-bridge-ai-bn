@@ -22,7 +22,7 @@ interface AuthenticatedSocket extends Socket {
     origin: process.env.FRONTEND_URL || 'http://localhost:3000',
     credentials: true,
   },
-  namespace: '/notifications',
+  namespace: 'api/notifications',
 })
 export class NotificationsGateway
   implements OnGatewayConnection, OnGatewayDisconnect
