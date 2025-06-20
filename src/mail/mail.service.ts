@@ -18,7 +18,8 @@ export interface EmailOptions {
 
 export interface EmailVerificationContext {
   firstName: string;
-  verificationCode: string;
+  email: string;
+  verificationToken: string;
   role: UserRole;
   roleDisplayName: string;
   features: string[];
@@ -166,12 +167,13 @@ export class MailService {
   async sendEmailVerification(
     email: string,
     firstName: string,
-    verificationCode: string,
+    verificationToken: string,
     role: UserRole,
   ): Promise<boolean> {
     const context: EmailVerificationContext = {
       firstName,
-      verificationCode,
+      email,
+      verificationToken,
       role,
       roleDisplayName: handlebarsHelpers.getRoleDisplayName(role),
       features: handlebarsHelpers.getRoleFeatures(role),

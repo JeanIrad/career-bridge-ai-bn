@@ -76,11 +76,11 @@ export class AuthController {
     return await this.authService.loginWithValidation(loginDto);
   }
 
-  @ApiOperation({ summary: 'Verify email with verification code' })
+  @ApiOperation({ summary: 'Verify email with verification token' })
   @ApiResponse({ status: 200, description: 'Email verified successfully' })
   @ApiResponse({
     status: 401,
-    description: 'Invalid or expired verification code',
+    description: 'Invalid or expired verification token',
   })
   @Post('verify-email')
   @HttpCode(HttpStatus.OK)
@@ -89,12 +89,26 @@ export class AuthController {
   ): Promise<{ message: string; user: Omit<User, 'password'> }> {
     return await this.authService.verifyEmail(
       verifyEmailDto.email,
-      verifyEmailDto.verificationCode,
+      verifyEmailDto.verificationToken,
     );
   }
 
-  @ApiOperation({ summary: 'Resend verification code' })
-  @ApiResponse({ status: 200, description: 'Verification code sent' })
+  @ApiOperation({ summary: 'Verify email via link (GET request)' })
+  @ApiResponse({ status: 200, description: 'Email verified successfully' })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid or expired verification token',
+  })
+  @Get('verify-email')
+  async verifyEmailViaLink(
+    @Query('token') token: string,
+    @Query('email') email: string,
+  ): Promise<{ message: string; user: Omit<User, 'password'> }> {
+    return await this.authService.verifyEmail(email, token);
+  }
+
+  @ApiOperation({ summary: 'Resend verification link' })
+  @ApiResponse({ status: 200, description: 'Verification link sent' })
   @ApiResponse({ status: 404, description: 'User not found' })
   @ApiResponse({ status: 409, description: 'Account already verified' })
   @Post('resend-verification')
@@ -102,7 +116,7 @@ export class AuthController {
   async resendVerification(
     @Body() resendVerificationDto: ResendVerificationDto,
   ): Promise<{ message: string }> {
-    return await this.authService.resendVerificationCode(
+    return await this.authService.resendVerificationLink(
       resendVerificationDto.email,
     );
   }
@@ -194,7 +208,7 @@ export class AuthController {
   }
 
   @ApiOperation({ summary: 'Resend email verification code (Enhanced)' })
-  @ApiResponse({ status: 200, description: 'Verification code sent' })
+  @ApiResponse({ status: 200, description: 'Verification link sent' })
   @ApiResponse({ status: 404, description: 'User not found' })
   @ApiResponse({ status: 400, description: 'Email already verified' })
   @UseGuards(RateLimitGuard)
@@ -202,7 +216,7 @@ export class AuthController {
   async resendVerificationEnhanced(
     @Query('email') email: string,
   ): Promise<{ message: string }> {
-    return this.enhancedAuthService.resendVerificationCode(email);
+    return this.enhancedAuthService.resendVerificationToken(email);
   }
 
   // ============= PASSWORD MANAGEMENT =============
@@ -262,9 +276,26 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('logout')
   async logout(@CurrentUser() user: any): Promise<{ message: string }> {
-    // For basic logout, we'll just return success
-    // Enhanced session management is handled in the enhanced controller
-    return { message: 'Logged out successfully' };
+    try {
+      // Log the logout event
+      await this.enhancedAuthService['logSecurityEvent'](user.id, 'LOGOUT', {
+        timestamp: new Date().toISOString(),
+      });
+
+      // If user has a specific session, revoke it
+      if (user.sessionId) {
+        await this.enhancedAuthService.revokeSession(user.id, user.sessionId);
+        return { message: 'Logged out successfully and session revoked' };
+      }
+
+      // For basic logout without session tracking
+      return { message: 'Logged out successfully' };
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Even if logging fails, we should still indicate successful logout
+      // since the client will clear tokens regardless
+      return { message: 'Logged out successfully' };
+    }
   }
 
   // ============= ACCOUNT MANAGEMENT =============

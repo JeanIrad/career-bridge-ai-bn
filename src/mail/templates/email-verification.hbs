@@ -1,13 +1,97 @@
+<style>
+  .verification-button-container {
+    text-align: center;
+    margin: 30px 0;
+  }
+
+  .verification-button {
+    display: inline-block;
+    padding: 16px 32px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white !important;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 16px;
+    text-align: center;
+    transition: transform 0.2s ease;
+  }
+
+  .verification-button:hover {
+    transform: translateY(-2px);
+    text-decoration: none;
+    color: white !important;
+  }
+
+  .verification-link {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    padding: 12px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    word-break: break-all;
+    color: #6c757d;
+    margin: 16px 0;
+  }
+
+  .code-expiry {
+    color: #6c757d;
+    font-size: 12px;
+    margin-top: 8px;
+  }
+
+  .alert {
+    border-radius: 8px;
+    padding: 16px;
+    margin: 20px 0;
+  }
+
+  .alert-info {
+    background-color: #e3f2fd;
+    border-left: 4px solid #2196f3;
+  }
+
+  .security-info {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 16px;
+    margin: 20px 0;
+  }
+
+  .security-info-title {
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #495057;
+  }
+
+  .security-info-content {
+    color: #6c757d;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+</style>
+
 <p>Welcome to CareerBridge AI! We're excited to have you join our community as a
   <strong>{{roleDisplayName}}</strong>.</p>
 
 <p>To complete your account setup and start exploring opportunities, please
-  verify your email address using the verification code below:</p>
+  verify your email address by clicking the button below:</p>
 
-<div class='code-container'>
-  <div class='code-label'>Verification Code</div>
-  <div class='verification-code'>{{verificationCode}}</div>
-  <div class='code-expiry'>This code expires in 15 minutes</div>
+<div class='verification-button-container'>
+  <a
+    href='{{baseUrl}}/auth/verify-email?token={{verificationToken}}&email={{email}}'
+    class='verification-button'
+  >
+    Verify Email Address
+  </a>
+  <div class='code-expiry'>This link expires in 24 hours</div>
+</div>
+
+<p>If the button doesn't work, you can copy and paste this link into your
+  browser:</p>
+<div class='verification-link'>
+  {{baseUrl}}/auth/verify-email?token={{verificationToken}}&email={{email}}
 </div>
 
 <div class='alert alert-info'>
@@ -24,7 +108,8 @@
   <div class='security-info-title'>🔒 Security Notice</div>
   <div class='security-info-content'>
     If you didn't create an account with CareerBridge AI, please ignore this
-    email. Your security is our priority.
+    email. Your security is our priority. This verification link can only be
+    used once.
   </div>
 </div>
 

@@ -115,13 +115,16 @@ model JobRecommendation {
 model VerificationCode {
   id        String   @id @default(uuid())
   email     String
-  code      String
+  code      String?  // Optional for backward compatibility
+  token     String?  // New: verification token for links
   type      String   // 'email_verification', 'password_reset', 'two_factor', 'account_reactivation'
   expiresAt DateTime
   attempts  Int      @default(0)
+  isUsed    Boolean  @default(false) // New: track if token has been used
   createdAt DateTime @default(now())
 
   @@unique([email, type])
+  @@unique([token]) // Ensure tokens are unique
 }
 
 model UserSession {

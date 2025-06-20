@@ -69,13 +69,13 @@ export class AuthService {
       },
     });
 
-    // Generate verification code
-    const verificationCode = this.generateVerificationCode();
+    // Generate verification token
+    const verificationToken = this.generateVerificationToken();
 
-    // Store verification code in database
-    await this.storeVerificationCode(
+    // Store verification token in database
+    await this.storeVerificationToken(
       user.email,
-      verificationCode,
+      verificationToken,
       'email_verification',
     );
 
@@ -84,7 +84,7 @@ export class AuthService {
       await this.mailService.sendEmailVerification(
         user.email,
         user.firstName,
-        verificationCode,
+        verificationToken,
         user.role,
       );
     } catch (error) {
@@ -103,24 +103,24 @@ export class AuthService {
   }
 
   /**
-   * Verify email with verification code
+   * Verify email with verification token
    */
   async verifyEmail(
     email: string,
-    verificationCode: string,
+    verificationToken: string,
   ): Promise<{
     message: string;
     user: Omit<User, 'password'>;
   }> {
-    // Verify the code
-    const isValidCode = await this.verifyCode(
+    // Verify the token
+    const isValidToken = await this.verifyToken(
       email,
-      verificationCode,
+      verificationToken,
       'email_verification',
     );
 
-    if (!isValidCode) {
-      throw new UnauthorizedException('Invalid or expired verification code');
+    if (!isValidToken) {
+      throw new UnauthorizedException('Invalid or expired verification token');
     }
 
     // Update user to verified
@@ -132,8 +132,8 @@ export class AuthService {
       },
     });
 
-    // Delete used verification code
-    await this.deleteVerificationCode(email, 'email_verification');
+    // Mark token as used and delete
+    await this.deleteVerificationToken(email, 'email_verification');
 
     // Send welcome email
     try {
@@ -162,9 +162,9 @@ export class AuthService {
   }
 
   /**
-   * Resend verification code
+   * Resend verification link
    */
-  async resendVerificationCode(email: string): Promise<{ message: string }> {
+  async resendVerificationLink(email: string): Promise<{ message: string }> {
     const user = await this.usersService.findByEmail(email);
     if (!user) {
       throw new ConflictException('User not found');
@@ -174,13 +174,13 @@ export class AuthService {
       throw new ConflictException('Account is already verified');
     }
 
-    // Generate new verification code
-    const verificationCode = this.generateVerificationCode();
+    // Generate new verification token
+    const verificationToken = this.generateVerificationToken();
 
-    // Store new verification code (this will replace the old one)
-    await this.storeVerificationCode(
+    // Store new verification token (this will replace the old one)
+    await this.storeVerificationToken(
       user.email,
-      verificationCode,
+      verificationToken,
       'email_verification',
     );
 
@@ -188,12 +188,12 @@ export class AuthService {
     await this.mailService.sendEmailVerification(
       user.email,
       user.firstName,
-      verificationCode,
+      verificationToken,
       user.role,
     );
 
     return {
-      message: 'New verification code sent to your email.',
+      message: 'New verification link sent to your email.',
     };
   }
 
@@ -412,6 +412,13 @@ export class AuthService {
   }
 
   /**
+   * Generate a secure verification token
+   */
+  private generateVerificationToken(): string {
+    return crypto.randomBytes(32).toString('hex');
+  }
+
+  /**
    * Store verification code in database
    */
   private async storeVerificationCode(
@@ -439,6 +446,40 @@ export class AuthService {
         type,
         expiresAt,
         attempts: 0,
+      },
+    });
+  }
+
+  /**
+   * Store verification token in database
+   */
+  private async storeVerificationToken(
+    email: string,
+    token: string,
+    type: string,
+  ): Promise<void> {
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    await this.prisma.verificationCode.upsert({
+      where: {
+        email_type: {
+          email,
+          type,
+        },
+      },
+      update: {
+        token,
+        expiresAt,
+        attempts: 0,
+        isUsed: false,
+      },
+      create: {
+        email,
+        token,
+        type,
+        expiresAt,
+        attempts: 0,
+        isUsed: false,
       },
     });
   }
@@ -497,9 +538,77 @@ export class AuthService {
   }
 
   /**
+   * Verify verification token
+   */
+  private async verifyToken(
+    email: string,
+    token: string,
+    type: string,
+  ): Promise<boolean> {
+    const verificationRecord = await this.prisma.verificationCode.findUnique({
+      where: {
+        email_type: {
+          email,
+          type,
+        },
+      },
+    });
+
+    if (!verificationRecord || !verificationRecord.token) {
+      return false;
+    }
+
+    // Check if token is expired
+    if (verificationRecord.expiresAt < new Date()) {
+      await this.deleteVerificationToken(email, type);
+      return false;
+    }
+
+    // Check if token has been used
+    if (verificationRecord.isUsed) {
+      return false;
+    }
+
+    // Check if token matches
+    if (verificationRecord.token !== token) {
+      return false;
+    }
+
+    // Mark token as used
+    await this.prisma.verificationCode.update({
+      where: {
+        email_type: {
+          email,
+          type,
+        },
+      },
+      data: {
+        isUsed: true,
+      },
+    });
+
+    return true;
+  }
+
+  /**
    * Delete verification code
    */
   private async deleteVerificationCode(
+    email: string,
+    type: string,
+  ): Promise<void> {
+    await this.prisma.verificationCode.deleteMany({
+      where: {
+        email,
+        type,
+      },
+    });
+  }
+
+  /**
+   * Delete verification token
+   */
+  private async deleteVerificationToken(
     email: string,
     type: string,
   ): Promise<void> {

@@ -86,7 +86,7 @@ export class EnhancedAuthService {
 
     // Create user with enhanced security
     const hashedPassword = await bcrypt.hash(registerDto.password, 12);
-    const verificationCode = this.generateVerificationCode();
+    const verificationToken = this.generateVerificationToken();
 
     const userData = {
       email: registerDto.email,
@@ -111,10 +111,10 @@ export class EnhancedAuthService {
       },
     });
 
-    // Store verification code
-    await this.storeVerificationCode(
+    // Store verification token
+    await this.storeVerificationToken(
       user.email,
-      verificationCode,
+      verificationToken,
       'email_verification',
     );
 
@@ -122,7 +122,7 @@ export class EnhancedAuthService {
     await this.mailService.sendEmailVerification(
       user.email,
       user.firstName,
-      verificationCode,
+      verificationToken,
       user.role,
     );
 
@@ -148,16 +148,16 @@ export class EnhancedAuthService {
     message: string;
     user: Omit<User, 'password'>;
   }> {
-    const { email, verificationCode } = verifyEmailDto;
+    const { email, verificationToken } = verifyEmailDto;
 
-    // Verify the code
-    const isValidCode = await this.verifyCode(
+    // Verify the token
+    const isValidToken = await this.verifyToken(
       email,
-      verificationCode,
+      verificationToken,
       'email_verification',
     );
-    if (!isValidCode) {
-      throw new BadRequestException('Invalid or expired verification code');
+    if (!isValidToken) {
+      throw new BadRequestException('Invalid or expired verification token');
     }
 
     // Update user status
@@ -174,8 +174,8 @@ export class EnhancedAuthService {
       },
     });
 
-    // Delete used verification code
-    await this.deleteVerificationCode(email, 'email_verification');
+    // Delete used verification token
+    await this.deleteVerificationToken(email, 'email_verification');
 
     // Send welcome email
     await this.mailService.sendWelcomeEmail(
@@ -195,7 +195,7 @@ export class EnhancedAuthService {
     };
   }
 
-  async resendVerificationCode(email: string): Promise<{ message: string }> {
+  async resendVerificationToken(email: string): Promise<{ message: string }> {
     const user = await this.usersService.findByEmail(email);
     if (!user) {
       throw new NotFoundException('User not found');
@@ -205,21 +205,21 @@ export class EnhancedAuthService {
       throw new BadRequestException('Email is already verified');
     }
 
-    const verificationCode = this.generateVerificationCode();
-    await this.storeVerificationCode(
+    const verificationToken = this.generateVerificationToken();
+    await this.storeVerificationToken(
       email,
-      verificationCode,
+      verificationToken,
       'email_verification',
     );
 
     await this.mailService.sendEmailVerification(
       email,
       user.firstName,
-      verificationCode,
+      verificationToken,
       user.role,
     );
 
-    return { message: 'Verification code sent successfully' };
+    return { message: 'Verification link sent successfully' };
   }
 
   // ============= ENHANCED LOGIN =============
@@ -752,6 +752,13 @@ export class EnhancedAuthService {
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
+  /**
+   * Generate a secure verification token
+   */
+  private generateVerificationToken(): string {
+    return crypto.randomBytes(32).toString('hex');
+  }
+
   private generateBackupCodes(): string[] {
     return Array.from({ length: 10 }, () =>
       crypto.randomBytes(4).toString('hex').toUpperCase(),
@@ -783,6 +790,40 @@ export class EnhancedAuthService {
         type,
         expiresAt,
         attempts: 0,
+      },
+    });
+  }
+
+  /**
+   * Store verification token in database
+   */
+  private async storeVerificationToken(
+    email: string,
+    token: string,
+    type: string,
+  ): Promise<void> {
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    await this.prisma.verificationCode.upsert({
+      where: {
+        email_type: {
+          email,
+          type,
+        },
+      },
+      update: {
+        token,
+        expiresAt,
+        attempts: 0,
+        isUsed: false,
+      },
+      create: {
+        email,
+        token,
+        type,
+        expiresAt,
+        attempts: 0,
+        isUsed: false,
       },
     });
   }
@@ -834,7 +875,72 @@ export class EnhancedAuthService {
     return true;
   }
 
+  /**
+   * Verify verification token
+   */
+  private async verifyToken(
+    email: string,
+    token: string,
+    type: string,
+  ): Promise<boolean> {
+    const verificationRecord = await this.prisma.verificationCode.findUnique({
+      where: {
+        email_type: {
+          email,
+          type,
+        },
+      },
+    });
+
+    if (!verificationRecord || !verificationRecord.token) {
+      return false;
+    }
+
+    // Check if token is expired
+    if (new Date() > verificationRecord.expiresAt) {
+      await this.deleteVerificationToken(email, type);
+      return false;
+    }
+
+    // Check if token has been used
+    if (verificationRecord.isUsed) {
+      return false;
+    }
+
+    // Check if token matches
+    if (verificationRecord.token !== token) {
+      return false;
+    }
+
+    // Mark token as used
+    await this.prisma.verificationCode.update({
+      where: {
+        email_type: {
+          email,
+          type,
+        },
+      },
+      data: {
+        isUsed: true,
+      },
+    });
+
+    return true;
+  }
+
   private async deleteVerificationCode(
+    email: string,
+    type: string,
+  ): Promise<void> {
+    await this.prisma.verificationCode.deleteMany({
+      where: { email, type },
+    });
+  }
+
+  /**
+   * Delete verification token
+   */
+  private async deleteVerificationToken(
     email: string,
     type: string,
   ): Promise<void> {
