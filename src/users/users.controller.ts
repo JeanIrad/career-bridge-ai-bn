@@ -49,6 +49,8 @@ import {
   DeletedUserResponseDto,
   HardDeleteResponseDto,
   CleanupResponseDto,
+  CreateUserResponseDto,
+  CreateUserByAdminDto,
 } from './dto/user.dto';
 import { UserRole } from '@prisma/client';
 
@@ -450,6 +452,35 @@ export class UsersController {
 
   // ============= ADMIN OPERATIONS =============
 
+  @Post('admin/create')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a new user (Admin only)' })
+  @ApiResponse({
+    status: 201,
+    description: 'User created successfully',
+    type: CreateUserResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  @ApiResponse({ status: 409, description: 'User already exists' })
+  async createUserByAdmin(
+    @CurrentUser() admin: any,
+    @Body() createUserDto: CreateUserByAdminDto,
+  ) {
+    const result = await this.usersService.createUserByAdmin(
+      admin.id,
+      createUserDto,
+    );
+    return {
+      success: true,
+      message: 'User created successfully',
+      data: result,
+    };
+  }
+
   @Get('admin/users')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -530,6 +561,87 @@ export class UsersController {
     };
   }
 
+  @Patch(':userId/suspend')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Suspend a user account (Admin only)' })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiResponse({ status: 200, description: 'User suspended successfully' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  async suspendUser(
+    @CurrentUser() admin: any,
+    @Param('userId') userId: string,
+    @Body() body: { reason?: string },
+  ) {
+    const result = await this.usersService.updateAccountStatus(
+      admin.id,
+      userId,
+      { status: 'SUSPENDED', reason: body.reason },
+    );
+    return {
+      success: true,
+      message: 'User suspended successfully',
+      data: result,
+    };
+  }
+
+  @Patch(':userId/activate')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Activate a user account (Admin only)' })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiResponse({ status: 200, description: 'User activated successfully' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  async activateUser(
+    @CurrentUser() admin: any,
+    @Param('userId') userId: string,
+    @Body() body: { reason?: string },
+  ) {
+    const result = await this.usersService.updateAccountStatus(
+      admin.id,
+      userId,
+      { status: 'ACTIVE', reason: body.reason },
+    );
+    return {
+      success: true,
+      message: 'User activated successfully',
+      data: result,
+    };
+  }
+
+  @Patch(':userId/deactivate')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Deactivate a user account (Admin only)' })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiResponse({ status: 200, description: 'User deactivated successfully' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  async deactivateUser(
+    @CurrentUser() admin: any,
+    @Param('userId') userId: string,
+    @Body() body: { reason?: string },
+  ) {
+    const result = await this.usersService.updateAccountStatus(
+      admin.id,
+      userId,
+      { status: 'INACTIVE', reason: body.reason },
+    );
+    return {
+      success: true,
+      message: 'User deactivated successfully',
+      data: result,
+    };
+  }
+
   // ============= ANALYTICS & STATISTICS =============
 
   @Get('admin/stats')
@@ -554,7 +666,20 @@ export class UsersController {
     const stats = await this.usersService.getUserStats();
     return {
       success: true,
-      data: stats,
+      data: {
+        totalUsers: stats?.totalUsers || 0,
+        activeUsers: stats?.activeUsers || 0,
+        verifiedUsers: stats?.verifiedUsers || 0,
+        roleDistribution: stats?.roleDistribution || {
+          students: 0,
+          employers: 0,
+          alumni: 0,
+        },
+        verificationRate:
+          stats && stats.totalUsers > 0
+            ? ((stats.verifiedUsers / stats.totalUsers) * 100).toFixed(1)
+            : '0%',
+      },
     };
   }
 

@@ -348,6 +348,49 @@ export class AuthController {
     return this.enhancedAuthService.revokeAllSessions(user.id);
   }
 
+  // ============= PASSWORD SETUP (For Admin-Created Users) =============
+
+  @ApiOperation({ summary: 'Validate password setup token' })
+  @ApiResponse({ status: 200, description: 'Token validation result' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired token' })
+  @Get('validate-password-token')
+  async validatePasswordToken(@Query('token') token: string) {
+    const result =
+      await this.enhancedAuthService.validatePasswordSetupToken(token);
+    return {
+      success: true,
+      data: result,
+    };
+  }
+
+  @ApiOperation({ summary: 'Set password using setup token' })
+  @ApiResponse({ status: 200, description: 'Password set successfully' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid token or password requirements not met',
+  })
+  @Post('set-password')
+  @HttpCode(HttpStatus.OK)
+  async setPassword(
+    @Body()
+    setPasswordDto: {
+      token: string;
+      password: string;
+      confirmPassword: string;
+    },
+  ) {
+    const result = await this.enhancedAuthService.setPasswordWithToken(
+      setPasswordDto.token,
+      setPasswordDto.password,
+      setPasswordDto.confirmPassword,
+    );
+    return {
+      success: true,
+      message: 'Password set successfully',
+      data: result,
+    };
+  }
+
   // ============= HEALTH CHECK =============
 
   @ApiOperation({ summary: 'Authentication system health check' })

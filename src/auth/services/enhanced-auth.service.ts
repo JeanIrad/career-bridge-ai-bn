@@ -746,6 +746,161 @@ export class EnhancedAuthService {
     };
   }
 
+  // ============= PASSWORD SETUP (For Admin-Created Users) =============
+
+  async validatePasswordSetupToken(token: string): Promise<{
+    valid: boolean;
+    user?: any;
+    message?: string;
+  }> {
+    try {
+      const passwordResetToken = await this.prisma.passwordResetToken.findFirst(
+        {
+          where: {
+            token,
+            type: 'PASSWORD_SETUP',
+            isUsed: false,
+            expiresAt: {
+              gt: new Date(),
+            },
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                role: true,
+              },
+            },
+          },
+        },
+      );
+
+      if (!passwordResetToken) {
+        return {
+          valid: false,
+          message: 'Invalid or expired password setup token',
+        };
+      }
+
+      return {
+        valid: true,
+        user: passwordResetToken.user,
+      };
+    } catch (error) {
+      console.error('Password setup token validation error:', error);
+      return {
+        valid: false,
+        message: 'Failed to validate token',
+      };
+    }
+  }
+
+  async setPasswordWithToken(
+    token: string,
+    password: string,
+    confirmPassword: string,
+  ): Promise<{
+    user: any;
+    message: string;
+  }> {
+    // Validate passwords match
+    if (password !== confirmPassword) {
+      throw new BadRequestException('Passwords do not match');
+    }
+
+    // Validate password strength
+    if (!this.isPasswordStrong(password)) {
+      throw new BadRequestException(
+        'Password must be at least 8 characters long and contain uppercase, lowercase, number, and special character',
+      );
+    }
+
+    // Validate token
+    const tokenValidation = await this.validatePasswordSetupToken(token);
+    if (!tokenValidation.valid) {
+      throw new BadRequestException(tokenValidation.message);
+    }
+
+    const user = tokenValidation.user;
+
+    try {
+      // Hash the new password
+      const hashedPassword = await bcrypt.hash(password, 12);
+
+      // Update user password and mark as verified if not already
+      const updatedUser = await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          password: hashedPassword,
+          isVerified: true,
+          accountStatus: 'ACTIVE',
+        },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          isVerified: true,
+          accountStatus: true,
+        },
+      });
+
+      // Mark token as used
+      await this.prisma.passwordResetToken.updateMany({
+        where: {
+          token,
+          type: 'PASSWORD_SETUP',
+        },
+        data: {
+          isUsed: true,
+        },
+      });
+
+      // Log the password setup
+      await this.prisma.securityLog.create({
+        data: {
+          userId: user.id,
+          event: 'PASSWORD_SETUP_COMPLETED',
+          metadata: {
+            completedAt: new Date(),
+            ipAddress: 'unknown', // Would be passed from controller in real implementation
+          },
+        },
+      });
+
+      return {
+        user: updatedUser,
+        message: 'Password set successfully',
+      };
+    } catch (error) {
+      console.error('Password setup error:', error);
+      throw new BadRequestException('Failed to set password');
+    }
+  }
+
+  private isPasswordStrong(password: string): boolean {
+    // At least 8 characters
+    if (password.length < 8) return false;
+
+    // Contains uppercase letter
+    if (!/[A-Z]/.test(password)) return false;
+
+    // Contains lowercase letter
+    if (!/[a-z]/.test(password)) return false;
+
+    // Contains number
+    if (!/\d/.test(password)) return false;
+
+    // Contains special character
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) return false;
+
+    return true;
+  }
+
   // ============= HELPER METHODS =============
 
   private generateVerificationCode(): string {

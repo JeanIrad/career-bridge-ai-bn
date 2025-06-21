@@ -68,6 +68,17 @@ export interface WelcomeEmailContext {
   currentYear: number;
 }
 
+export interface PasswordSetupContext {
+  firstName: string;
+  email: string;
+  passwordSetupLink: string;
+  role: UserRole;
+  roleDisplayName: string;
+  accountType: string;
+  baseUrl: string;
+  currentYear: number;
+}
+
 export interface AccountReactivationContext {
   firstName: string;
   reactivationCode: string;
@@ -288,6 +299,45 @@ export class MailService {
     });
   }
 
+  // ============= PASSWORD SETUP EMAIL =============
+
+  async sendPasswordSetupEmail(
+    email: string,
+    firstName: string,
+    passwordSetupLink: string,
+    role: UserRole,
+  ): Promise<boolean> {
+    const context: PasswordSetupContext = {
+      firstName,
+      email,
+      passwordSetupLink,
+      role,
+      roleDisplayName: handlebarsHelpers.getRoleDisplayName(role),
+      accountType:
+        role === 'ADMIN'
+          ? 'Administrative'
+          : role === 'EMPLOYER'
+            ? 'Employer'
+            : role === 'PROFESSOR'
+              ? 'Faculty'
+              : role === 'UNIVERSITY_STAFF'
+                ? 'University Staff'
+                : 'User',
+      baseUrl: this.configService.get<string>(
+        'FRONTEND_URL',
+        'http://localhost:3000',
+      ),
+      currentYear: new Date().getFullYear(),
+    };
+
+    return this.sendEmail({
+      to: email,
+      subject: `Welcome to CareerBridge AI - Set Your Password`,
+      template: 'password-setup',
+      context,
+    });
+  }
+
   // ============= WELCOME EMAIL =============
 
   async sendWelcomeEmail(
@@ -438,6 +488,45 @@ export class MailService {
       context,
       attachments,
     });
+  }
+
+  // ============= TEST EMAIL =============
+
+  async sendTestEmail(
+    email: string,
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const result = await this.sendEmail({
+        to: email,
+        subject: 'CareerBridge AI - Test Email',
+        template: 'notification', // Use a simple template
+        context: {
+          firstName: 'Test User',
+          title: 'Test Email',
+          content:
+            'This is a test email to verify that the email service is working correctly.',
+          actionUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+        },
+      });
+
+      if (result) {
+        return {
+          success: true,
+          message: `Test email sent successfully to ${email}`,
+        };
+      } else {
+        return {
+          success: false,
+          message: `Failed to send test email to ${email}`,
+        };
+      }
+    } catch (error) {
+      this.logger.error('Test email failed:', error);
+      return {
+        success: false,
+        message: `Test email failed: ${error.message}`,
+      };
+    }
   }
 
   // ============= EMAIL STATISTICS =============

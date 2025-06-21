@@ -18,6 +18,7 @@ import {
   IsObject,
   IsNotEmpty,
   MaxLength,
+  Matches,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
@@ -37,7 +38,10 @@ export class UpdateUserProfileDto {
 
   @ApiPropertyOptional({ example: '+1234567890' })
   @IsOptional()
-  @IsPhoneNumber()
+  @Matches(/^\+?[1-9]\d{1,14}$/, {
+    message:
+      'Please enter a valid phone number with country code (e.g., +250787308777)',
+  })
   phoneNumber?: string;
 
   @ApiPropertyOptional({ example: 'STU2024001' })
@@ -1019,4 +1023,299 @@ export class CleanupResponseDto {
 
   @ApiProperty({ example: 5 })
   deletedCount: number;
+}
+
+// ============= ADMIN CREATE USER DTOs =============
+
+export class CreateUserByAdminDto {
+  // Basic Information
+  @ApiProperty({ example: 'john@example.com' })
+  @IsEmail()
+  email: string;
+
+  @ApiProperty({ example: 'John' })
+  @IsString()
+  @IsNotEmpty()
+  firstName: string;
+
+  @ApiProperty({ example: 'Doe' })
+  @IsString()
+  @IsNotEmpty()
+  lastName: string;
+
+  @ApiPropertyOptional({ example: '+1234567890' })
+  @IsOptional()
+  @Matches(/^\+?[1-9]\d{1,14}$/, {
+    message:
+      'Please enter a valid phone number with country code (e.g., +250787308777)',
+  })
+  phoneNumber?: string;
+
+  @ApiProperty({ enum: UserRole })
+  @IsEnum(UserRole)
+  role: UserRole;
+
+  // Organization Information
+  @ApiPropertyOptional({ example: 'Tech Corp Inc.' })
+  @IsOptional()
+  @IsString()
+  organizationName?: string;
+
+  @ApiPropertyOptional({ example: 'https://techcorp.com' })
+  @IsOptional()
+  @IsUrl({}, { message: 'Organization website must be a valid URL' })
+  organizationWebsite?: string;
+
+  @ApiPropertyOptional({ example: 'Leading technology company...' })
+  @IsOptional()
+  @IsString()
+  organizationDescription?: string;
+
+  @ApiPropertyOptional({ example: '100-500' })
+  @IsOptional()
+  @IsString()
+  organizationSize?: string;
+
+  @ApiPropertyOptional({ example: 'Technology' })
+  @IsOptional()
+  @IsString()
+  industry?: string;
+
+  // Location
+  @ApiPropertyOptional({ example: 'United States' })
+  @IsOptional()
+  @IsString()
+  country?: string;
+
+  @ApiPropertyOptional({ example: 'California' })
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @ApiPropertyOptional({ example: 'San Francisco' })
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  // Role & Permissions
+  @ApiPropertyOptional({ example: 'HR Manager' })
+  @IsOptional()
+  @IsString()
+  jobTitle?: string;
+
+  @ApiPropertyOptional({ example: 'Human Resources' })
+  @IsOptional()
+  @IsString()
+  department?: string;
+
+  // University Specific
+  @ApiPropertyOptional({ example: 'Public' })
+  @IsOptional()
+  @IsString()
+  universityType?: string;
+
+  @ApiPropertyOptional({ example: 'AACSB Accredited' })
+  @IsOptional()
+  @IsString()
+  accreditation?: string;
+
+  @ApiPropertyOptional({ example: 'Harvard University' })
+  @IsOptional()
+  @IsString()
+  university?: string;
+
+  // Employer Specific (Enhanced Company Fields)
+  @ApiPropertyOptional({ example: 'Private' })
+  @IsOptional()
+  @IsString()
+  companyType?: string;
+
+  @ApiPropertyOptional({ example: 2010 })
+  @IsOptional()
+  @IsInt()
+  @Min(1900)
+  @Max(new Date().getFullYear())
+  @Transform(({ value }) =>
+    typeof value === 'string' ? parseInt(value, 10) : value,
+  )
+  foundedYear?: number;
+
+  @ApiPropertyOptional({ example: ['Software Development', 'AI/ML'] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  specializations?: string[];
+
+  @ApiPropertyOptional({ example: '100-500' })
+  @IsOptional()
+  @IsString()
+  companySize?: string;
+
+  @ApiPropertyOptional({ example: 'Leading technology company...' })
+  @IsOptional()
+  @IsString()
+  companyDescription?: string;
+
+  @ApiPropertyOptional({ example: 'https://company.com' })
+  @IsOptional()
+  @IsUrl({}, { message: 'Company website must be a valid URL' })
+  companyWebsite?: string;
+
+  @ApiPropertyOptional({ example: 'Technology' })
+  @IsOptional()
+  @IsString()
+  companyIndustry?: string;
+
+  @ApiPropertyOptional({ example: '123 Business St' })
+  @IsOptional()
+  @IsString()
+  companyAddress?: string;
+
+  @ApiPropertyOptional({ example: 'San Francisco' })
+  @IsOptional()
+  @IsString()
+  companyCity?: string;
+
+  @ApiPropertyOptional({ example: 'California' })
+  @IsOptional()
+  @IsString()
+  companyState?: string;
+
+  @ApiPropertyOptional({ example: 'United States' })
+  @IsOptional()
+  @IsString()
+  companyCountry?: string;
+
+  @ApiPropertyOptional({ example: '+1234567890' })
+  @IsOptional()
+  @Matches(/^\+?[1-9]\d{1,14}$/, {
+    message:
+      'Company phone must be a valid phone number with country code (e.g., +250787308777)',
+  })
+  companyPhone?: string;
+
+  @ApiPropertyOptional({ example: 'contact@company.com' })
+  @IsOptional()
+  @IsEmail({}, { message: 'Company email must be a valid email address' })
+  companyEmail?: string;
+
+  @ApiPropertyOptional({ example: 'https://linkedin.com/company/example' })
+  @IsOptional()
+  @IsUrl({}, { message: 'Company LinkedIn must be a valid URL' })
+  companyLinkedIn?: string;
+
+  @ApiPropertyOptional({ example: 'https://twitter.com/company' })
+  @IsOptional()
+  @IsUrl({}, { message: 'Company Twitter must be a valid URL' })
+  companyTwitter?: string;
+
+  @ApiPropertyOptional({ example: 'https://facebook.com/company' })
+  @IsOptional()
+  @IsUrl({}, { message: 'Company Facebook must be a valid URL' })
+  companyFacebook?: string;
+
+  // Admin Specific
+  @ApiPropertyOptional({ example: 'System Administrator' })
+  @IsOptional()
+  @IsString()
+  adminLevel?: string;
+
+  @ApiPropertyOptional({ example: ['manage_users', 'view_analytics'] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  permissions?: string[];
+
+  // Account Settings
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  sendWelcomeEmail?: boolean = true;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  requirePasswordReset?: boolean = true;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  isVerified?: boolean = false;
+
+  @ApiPropertyOptional({ enum: AccountStatus })
+  @IsOptional()
+  @IsEnum(AccountStatus)
+  accountStatus?: AccountStatus = AccountStatus.ACTIVE;
+
+  // Student specific fields
+  @ApiPropertyOptional({ example: 'Computer Science' })
+  @IsOptional()
+  @IsString()
+  major?: string;
+
+  @ApiPropertyOptional({ example: 2024 })
+  @IsOptional()
+  @IsInt()
+  @Min(2020)
+  @Max(2030)
+  graduationYear?: number;
+
+  @ApiPropertyOptional({ example: 'Software Engineer' })
+  @IsOptional()
+  @IsString()
+  headline?: string;
+
+  @ApiPropertyOptional({ example: 'Passionate software engineer...' })
+  @IsOptional()
+  @IsString()
+  bio?: string;
+
+  // Company creation flag for employers
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  createCompany?: boolean = false;
+
+  // Company name alternatives
+  @ApiPropertyOptional({ example: 'Tech Corp Inc.' })
+  @IsOptional()
+  @IsString()
+  companyName?: string;
+
+  // Location enhancement fields
+  @ApiPropertyOptional({ example: '12345' })
+  @IsOptional()
+  @IsString()
+  zipCode?: string;
+
+  @ApiPropertyOptional({ example: 'US' })
+  @IsOptional()
+  @IsString()
+  countryCode?: string;
+
+  // IP detection metadata
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  detectedFromIp?: boolean;
+
+  @ApiPropertyOptional({ example: '192.168.1.1' })
+  @IsOptional()
+  @IsString()
+  ipAddress?: string;
+}
+
+export class CreateUserResponseDto {
+  @ApiProperty({ example: true })
+  success: boolean;
+
+  @ApiProperty({ example: 'User created successfully' })
+  message: string;
+
+  @ApiProperty()
+  data: {
+    user: UserProfileResponseDto;
+    temporaryPassword?: string;
+    welcomeEmailSent?: boolean;
+  };
 }
