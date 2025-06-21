@@ -51,6 +51,7 @@ import {
   CleanupResponseDto,
   CreateUserResponseDto,
   CreateUserByAdminDto,
+  UserStatsDto,
 } from './dto/user.dto';
 import { UserRole } from '@prisma/client';
 
@@ -651,6 +652,7 @@ export class UsersController {
   @ApiResponse({
     status: 200,
     description: 'Statistics retrieved successfully',
+    type: UserStatsDto,
   })
   @ApiResponse({
     status: 403,
@@ -666,20 +668,67 @@ export class UsersController {
     const stats = await this.usersService.getUserStats();
     return {
       success: true,
-      data: {
-        totalUsers: stats?.totalUsers || 0,
-        activeUsers: stats?.activeUsers || 0,
-        verifiedUsers: stats?.verifiedUsers || 0,
-        roleDistribution: stats?.roleDistribution || {
-          students: 0,
-          employers: 0,
-          alumni: 0,
-        },
-        verificationRate:
-          stats && stats.totalUsers > 0
-            ? ((stats.verifiedUsers / stats.totalUsers) * 100).toFixed(1)
-            : '0%',
-      },
+      data: stats,
+    };
+  }
+
+  @Get('admin/recent')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get recent users (Admin only)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiResponse({
+    status: 200,
+    description: 'Recent users retrieved successfully',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  async getRecentUsers(
+    @CurrentUser() admin: any,
+    @Query('limit') limit: number = 10,
+  ) {
+    // Verify admin role
+    await this.usersService.findByIdWithRole(admin.id, [
+      UserRole.ADMIN,
+      UserRole.SUPER_ADMIN,
+    ]);
+
+    const users = await this.usersService.getRecentUsers(limit);
+    return {
+      success: true,
+      data: users,
+    };
+  }
+
+  @Get('admin/pending-verification')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get users pending verification (Admin only)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiResponse({
+    status: 200,
+    description: 'Pending verification users retrieved successfully',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  async getPendingVerificationUsers(
+    @CurrentUser() admin: any,
+    @Query('limit') limit: number = 10,
+  ) {
+    // Verify admin role
+    await this.usersService.findByIdWithRole(admin.id, [
+      UserRole.ADMIN,
+      UserRole.SUPER_ADMIN,
+    ]);
+
+    const users = await this.usersService.getPendingVerificationUsers(limit);
+    return {
+      success: true,
+      data: users,
     };
   }
 

@@ -23,6 +23,7 @@ import {
   UpdateAccountStatusDto,
   PaginationDto,
   CreateUserByAdminDto,
+  UserStatsDto,
 } from './dto/user.dto';
 import { User, UserRole, AccountStatus, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
@@ -425,7 +426,7 @@ export class UsersService {
     });
   }
 
-  async getUserStats(): Promise<any> {
+  async getUserStats(): Promise<UserStatsDto> {
     const [
       totalUsers,
       activeUsers,
@@ -433,6 +434,11 @@ export class UsersService {
       studentCount,
       employerCount,
       alumniCount,
+      professorCount,
+      maleCount,
+      femaleCount,
+      otherCount,
+      notSpecifiedCount,
     ] = await Promise.all([
       this.prisma.user.count({ where: { deletedAt: null } }),
       this.prisma.user.count({
@@ -465,16 +471,58 @@ export class UsersService {
           role: UserRole.ALUMNI,
         },
       }),
+      this.prisma.user.count({
+        where: {
+          deletedAt: null,
+          role: UserRole.PROFESSOR,
+        },
+      }),
+      this.prisma.user.count({
+        where: {
+          deletedAt: null,
+          gender: 'MALE',
+        },
+      }),
+      this.prisma.user.count({
+        where: {
+          deletedAt: null,
+          gender: 'FEMALE',
+        },
+      }),
+      this.prisma.user.count({
+        where: {
+          deletedAt: null,
+          gender: 'OTHER',
+        },
+      }),
+      this.prisma.user.count({
+        where: {
+          deletedAt: null,
+          gender: null,
+        },
+      }),
     ]);
+
+    // Calculate verification rate as a number (percentage)
+    const verificationRate =
+      totalUsers > 0 ? (verifiedUsers / totalUsers) * 100 : 0;
 
     return {
       totalUsers,
       activeUsers,
       verifiedUsers,
+      verificationRate: Number(verificationRate.toFixed(1)), // Return as number with 1 decimal place
       roleDistribution: {
         students: studentCount,
         employers: employerCount,
         alumni: alumniCount,
+        professors: professorCount,
+      },
+      genderDistribution: {
+        male: maleCount,
+        female: femaleCount,
+        other: otherCount,
+        notSpecified: notSpecifiedCount,
       },
     };
   }
@@ -820,6 +868,7 @@ export class UsersService {
           firstName: filteredDto.firstName,
           lastName: filteredDto.lastName,
           phoneNumber: filteredDto.phoneNumber,
+          gender: filteredDto.gender,
           role: filteredDto.role,
           country: filteredDto.country,
           state: filteredDto.state,
@@ -1063,5 +1112,55 @@ export class UsersService {
       console.error('Error sending password setup email:', error);
       throw error;
     }
+  }
+
+  // ============= ADDITIONAL ADMIN METHODS FOR OVERVIEW =============
+
+  async getRecentUsers(limit: number = 10): Promise<any[]> {
+    const users = await this.prisma.user.findMany({
+      where: { deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: {
+        education: {
+          where: { deletedAt: null },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+        experiences: {
+          where: { deletedAt: null },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
+    });
+
+    return users.map((user) => this.sanitizeUserForResponse(user));
+  }
+
+  async getPendingVerificationUsers(limit: number = 10): Promise<any[]> {
+    const users = await this.prisma.user.findMany({
+      where: {
+        deletedAt: null,
+        isVerified: false,
+        accountStatus: AccountStatus.ACTIVE,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: {
+        education: {
+          where: { deletedAt: null },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+        experiences: {
+          where: { deletedAt: null },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
+    });
+
+    return users.map((user) => this.sanitizeUserForResponse(user));
   }
 }

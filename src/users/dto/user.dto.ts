@@ -1051,6 +1051,11 @@ export class CreateUserByAdminDto {
   })
   phoneNumber?: string;
 
+  @ApiPropertyOptional({ enum: Gender })
+  @IsOptional()
+  @IsEnum(Gender)
+  gender?: Gender;
+
   @ApiProperty({ enum: UserRole })
   @IsEnum(UserRole)
   role: UserRole;
@@ -1318,4 +1323,56 @@ export class CreateUserResponseDto {
     temporaryPassword?: string;
     welcomeEmailSent?: boolean;
   };
+}
+
+// User Stats DTO for Admin Dashboard
+export class RoleDistributionDto {
+  @ApiProperty({ example: 150 })
+  students: number;
+
+  @ApiProperty({ example: 75 })
+  alumni: number;
+
+  @ApiProperty({ example: 50 })
+  employers: number;
+
+  @ApiProperty({ example: 25 })
+  professors: number;
+}
+
+export class GenderDistributionDto {
+  @ApiProperty({ example: 180 })
+  male: number;
+
+  @ApiProperty({ example: 120 })
+  female: number;
+
+  @ApiProperty({ example: 5 })
+  other: number;
+
+  @ApiProperty({ example: 15 })
+  notSpecified: number;
+}
+
+export class UserStatsDto {
+  @ApiProperty({ example: 300 })
+  totalUsers: number;
+
+  @ApiProperty({ example: 180 })
+  verifiedUsers: number;
+
+  @ApiProperty({ example: 250 })
+  activeUsers: number;
+
+  @ApiProperty({
+    example: 60.0,
+    description: 'Verification rate as a percentage',
+  })
+  verificationRate: number;
+
+  @ApiProperty({ type: RoleDistributionDto })
+  roleDistribution: RoleDistributionDto;
+
+  @ApiProperty({ type: GenderDistributionDto })
+  genderDistribution: GenderDistributionDto;
 }
