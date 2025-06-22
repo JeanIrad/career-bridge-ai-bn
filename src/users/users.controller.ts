@@ -52,6 +52,10 @@ import {
   CreateUserResponseDto,
   CreateUserByAdminDto,
   UserStatsDto,
+  ComprehensiveAnalyticsDto,
+  AnalyticsFiltersDto,
+  ExportReportDto,
+  ChangePasswordDto,
 } from './dto/user.dto';
 import { UserRole } from '@prisma/client';
 
@@ -134,6 +138,38 @@ export class UsersController {
       success: true,
       message: 'Resume uploaded successfully',
       data: { resume: updatedUser.resume },
+    };
+  }
+
+  @Patch('me/change-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Change user password' })
+  @ApiResponse({ status: 200, description: 'Password changed successfully' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid current password or password validation failed',
+  })
+  async changePassword(
+    @CurrentUser() user: any,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ) {
+    // Validate that new password and confirm password match
+    if (changePasswordDto.newPassword !== changePasswordDto.confirmPassword) {
+      throw new BadRequestException(
+        'New password and confirm password do not match',
+      );
+    }
+
+    const result = await this.usersService.changePassword(
+      user.id,
+      changePasswordDto.currentPassword,
+      changePasswordDto.newPassword,
+    );
+
+    return {
+      success: true,
+      message: result.message,
     };
   }
 
@@ -669,6 +705,109 @@ export class UsersController {
     return {
       success: true,
       data: stats,
+    };
+  }
+
+  @Get('admin/analytics')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get comprehensive analytics data (Admin only)' })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    type: String,
+    example: '2024-01-01',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    type: String,
+    example: '2024-12-31',
+  })
+  @ApiQuery({
+    name: 'roles',
+    required: false,
+    type: [String],
+    example: ['STUDENT', 'ALUMNI'],
+  })
+  @ApiQuery({
+    name: 'genders',
+    required: false,
+    type: [String],
+    example: ['MALE', 'FEMALE'],
+  })
+  @ApiQuery({
+    name: 'countries',
+    required: false,
+    type: [String],
+    example: ['US', 'CA'],
+  })
+  @ApiQuery({ name: 'isVerified', required: false, type: Boolean })
+  @ApiQuery({
+    name: 'accountStatus',
+    required: false,
+    type: [String],
+    example: ['ACTIVE'],
+  })
+  @ApiQuery({
+    name: 'timeRange',
+    required: false,
+    type: String,
+    example: '30d',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Analytics data retrieved successfully',
+    type: ComprehensiveAnalyticsDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  async getComprehensiveAnalytics(
+    @CurrentUser() admin: any,
+    @Query() filters: AnalyticsFiltersDto,
+  ) {
+    // Verify admin role in service
+    await this.usersService.findByIdWithRole(admin.id, [
+      UserRole.ADMIN,
+      UserRole.SUPER_ADMIN,
+    ]);
+
+    const analytics =
+      await this.usersService.getComprehensiveAnalytics(filters);
+    return {
+      success: true,
+      data: analytics,
+    };
+  }
+
+  @Post('admin/analytics/export')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Export analytics report (Admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Report exported successfully',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  async exportAnalyticsReport(
+    @CurrentUser() admin: any,
+    @Body() exportDto: ExportReportDto,
+  ) {
+    // Verify admin role in service
+    await this.usersService.findByIdWithRole(admin.id, [
+      UserRole.ADMIN,
+      UserRole.SUPER_ADMIN,
+    ]);
+
+    const exportData = await this.usersService.exportAnalyticsReport(exportDto);
+    return {
+      success: true,
+      data: exportData,
     };
   }
 

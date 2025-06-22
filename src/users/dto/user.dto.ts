@@ -19,6 +19,8 @@ import {
   IsNotEmpty,
   MaxLength,
   Matches,
+  IsIn,
+  MinLength,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
@@ -1375,4 +1377,290 @@ export class UserStatsDto {
 
   @ApiProperty({ type: GenderDistributionDto })
   genderDistribution: GenderDistributionDto;
+}
+
+export class UserGrowthDto {
+  @ApiProperty({ example: '2024-01' })
+  month: string;
+
+  @ApiProperty({ example: 150 })
+  newUsers: number;
+
+  @ApiProperty({ example: 1250 })
+  totalUsers: number;
+
+  @ApiProperty({ example: 12.5 })
+  growthRate: number;
+}
+
+export class ActivityMetricsDto {
+  @ApiProperty({ example: 850 })
+  dailyActiveUsers: number;
+
+  @ApiProperty({ example: 2400 })
+  weeklyActiveUsers: number;
+
+  @ApiProperty({ example: 8500 })
+  monthlyActiveUsers: number;
+
+  @ApiProperty({ example: 75.5 })
+  engagementRate: number;
+
+  @ApiProperty({ example: 25.5 })
+  averageSessionDuration: number;
+}
+
+export class PlatformUsageDto {
+  @ApiProperty({ example: 'Job Search' })
+  feature: string;
+
+  @ApiProperty({ example: 15847 })
+  usageCount: number;
+
+  @ApiProperty({ example: 68.5 })
+  adoptionRate: number;
+
+  @ApiProperty({ example: 12.5 })
+  growthRate: number;
+}
+
+export class GeographicDataDto {
+  @ApiProperty({ example: 'United States' })
+  country: string;
+
+  @ApiProperty({ example: 1250 })
+  userCount: number;
+
+  @ApiProperty({ example: 42.5 })
+  percentage: number;
+
+  @ApiProperty({ example: 'US' })
+  countryCode: string;
+}
+
+export class AnalyticsOverviewDto {
+  @ApiProperty({ example: 25847 })
+  totalUsers: number;
+
+  @ApiProperty({ example: 18650 })
+  activeUsers: number;
+
+  @ApiProperty({ example: 156789 })
+  totalSessions: number;
+
+  @ApiProperty({ example: 2456789 })
+  pageViews: number;
+
+  @ApiProperty({ example: 8.5 })
+  averageSessionDuration: number;
+
+  @ApiProperty({ example: 3.2 })
+  bounceRate: number;
+
+  @ApiProperty({ example: 12.5 })
+  userGrowthRate: number;
+
+  @ApiProperty({ example: 85.6 })
+  retentionRate: number;
+}
+
+export class ComprehensiveAnalyticsDto {
+  @ApiProperty({ type: AnalyticsOverviewDto })
+  overview: AnalyticsOverviewDto;
+
+  @ApiProperty({ type: [UserGrowthDto] })
+  userGrowth: UserGrowthDto[];
+
+  @ApiProperty({ type: ActivityMetricsDto })
+  activityMetrics: ActivityMetricsDto;
+
+  @ApiProperty({ type: [PlatformUsageDto] })
+  platformUsage: PlatformUsageDto[];
+
+  @ApiProperty({ type: [GeographicDataDto] })
+  geographicData: GeographicDataDto[];
+
+  @ApiProperty({ type: GenderDistributionDto })
+  genderDistribution: GenderDistributionDto;
+
+  @ApiProperty({ type: RoleDistributionDto })
+  roleDistribution: RoleDistributionDto;
+}
+
+export class AnalyticsFiltersDto {
+  @ApiProperty({
+    example: '2024-01-01',
+    required: false,
+    description: 'Start date for analytics data (YYYY-MM-DD)',
+  })
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @ApiProperty({
+    example: '2024-12-31',
+    required: false,
+    description: 'End date for analytics data (YYYY-MM-DD)',
+  })
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
+
+  @ApiProperty({
+    example: ['STUDENT', 'ALUMNI'],
+    required: false,
+    description: 'Filter by user roles',
+    isArray: true,
+    enum: ['STUDENT', 'ALUMNI', 'EMPLOYER', 'PROFESSOR'],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsEnum(['STUDENT', 'ALUMNI', 'EMPLOYER', 'PROFESSOR'], { each: true })
+  @Transform(({ value }) => (Array.isArray(value) ? value : [value]))
+  roles?: string[];
+
+  @ApiProperty({
+    example: ['MALE', 'FEMALE'],
+    required: false,
+    description: 'Filter by gender',
+    isArray: true,
+    enum: ['MALE', 'FEMALE', 'OTHER'],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsEnum(['MALE', 'FEMALE', 'OTHER'], { each: true })
+  @Transform(({ value }) => (Array.isArray(value) ? value : [value]))
+  genders?: string[];
+
+  @ApiProperty({
+    example: ['US', 'CA', 'GB'],
+    required: false,
+    description: 'Filter by country codes',
+    isArray: true,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Transform(({ value }) => (Array.isArray(value) ? value : [value]))
+  countries?: string[];
+
+  @ApiProperty({
+    example: true,
+    required: false,
+    description: 'Filter by verification status',
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  isVerified?: boolean;
+
+  @ApiProperty({
+    example: ['ACTIVE', 'INACTIVE'],
+    required: false,
+    description: 'Filter by account status',
+    isArray: true,
+    enum: ['ACTIVE', 'INACTIVE', 'SUSPENDED'],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsEnum(['ACTIVE', 'INACTIVE', 'SUSPENDED'], { each: true })
+  @Transform(({ value }) => (Array.isArray(value) ? value : [value]))
+  accountStatus?: string[];
+
+  @ApiProperty({
+    example: '30d',
+    required: false,
+    description: 'Time range preset',
+    enum: ['7d', '30d', '90d', '6m', '1y', 'all'],
+  })
+  @IsOptional()
+  @IsEnum(['7d', '30d', '90d', '6m', '1y', 'all'])
+  timeRange?: string;
+}
+
+export class ExportReportDto {
+  @ApiProperty({
+    example: 'comprehensive',
+    description: 'Type of report to export',
+    enum: ['comprehensive', 'users', 'growth', 'engagement', 'geographic'],
+  })
+  @IsString()
+  @IsEnum(['comprehensive', 'users', 'growth', 'engagement', 'geographic'])
+  reportType: string;
+
+  @ApiProperty({
+    example: 'csv',
+    description: 'Export format',
+    enum: ['csv', 'json', 'xlsx', 'pdf'],
+  })
+  @IsString()
+  @IsEnum(['csv', 'json', 'xlsx', 'pdf'])
+  format: string;
+
+  @ApiProperty({
+    type: AnalyticsFiltersDto,
+    required: false,
+    description: 'Filters to apply to the export',
+  })
+  @IsOptional()
+  @Type(() => AnalyticsFiltersDto)
+  filters?: AnalyticsFiltersDto;
+
+  @ApiProperty({
+    example: ['overview', 'userGrowth', 'demographics'],
+    required: false,
+    description: 'Specific sections to include in the export',
+    isArray: true,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  sections?: string[];
+
+  @ApiProperty({
+    example: true,
+    required: false,
+    description: 'Include charts and visualizations in export',
+  })
+  @IsOptional()
+  @IsBoolean()
+  includeCharts?: boolean;
+}
+
+// ============= PASSWORD MANAGEMENT =============
+
+export class ChangePasswordDto {
+  @ApiProperty({
+    example: 'currentPassword123',
+    description: 'Current password for verification',
+  })
+  @IsNotEmpty()
+  @IsString()
+  currentPassword: string;
+
+  @ApiProperty({
+    example: 'newSecurePassword456',
+    description: 'New password (minimum 8 characters)',
+    minLength: 8,
+  })
+  @IsNotEmpty()
+  @IsString()
+  @MinLength(8, { message: 'Password must be at least 8 characters long' })
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
+    message:
+      'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
+  })
+  newPassword: string;
+
+  @ApiProperty({
+    example: 'newSecurePassword456',
+    description: 'Confirm new password (must match newPassword)',
+  })
+  @IsNotEmpty()
+  @IsString()
+  confirmPassword: string;
 }

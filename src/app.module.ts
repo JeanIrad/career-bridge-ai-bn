@@ -14,6 +14,7 @@ import { AiModule } from './ai/ai.module';
 import { CacheModule } from './cache/cache.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { RecommendationController } from './recommendation/recommendation.controller';
+import { ContentModerationModule } from './content-moderation/content-moderation.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { RecommendationController } from './recommendation/recommendation.contro
     AiModule,
     CacheModule,
     AnalyticsModule, // Comprehensive analytics and reporting
+    ContentModerationModule, // Content moderation and safety
   ],
   controllers: [AppController, RecommendationController],
   providers: [AppService],

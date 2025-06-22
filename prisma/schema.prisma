@@ -98,6 +98,11 @@ model User {
   // Document uploads
   documents         Document[]
   passwordResetTokens PasswordResetToken[]
+  
+  // Content Moderation relations
+  authoredModerationRequests   ModerationRequest[] @relation("ModerationAuthor")
+  reportedModerationRequests   ModerationRequest[] @relation("ModerationReporter")
+  moderatedRequests            ModerationRequest[] @relation("ModerationModerator")
 }
 model JobRecommendation {
   id        String   @id @default(uuid())
@@ -609,4 +614,83 @@ enum VerificationStatus {
   APPROVED
   REJECTED
   REQUIRES_RESUBMISSION
+}
+
+// Content Moderation Enums
+enum ContentType {
+  POST
+  COMMENT
+  MESSAGE
+  PROFILE
+  DOCUMENT
+  IMAGE
+  VIDEO
+  JOB_POSTING
+  COMPANY_DESCRIPTION
+  USER_BIO
+  REVIEW
+}
+
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FLAGGED
+  UNDER_REVIEW
+  AUTO_APPROVED
+  AUTO_REJECTED
+}
+
+enum ViolationType {
+  SPAM
+  HARASSMENT
+  HATE_SPEECH
+  INAPPROPRIATE_CONTENT
+  COPYRIGHT_VIOLATION
+  FAKE_INFORMATION
+  VIOLENCE
+  ADULT_CONTENT
+  DISCRIMINATION
+  SCAM
+  OFF_TOPIC
+  DUPLICATE_CONTENT
+}
+
+enum SeverityLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// Content Moderation Models
+model ModerationRequest {
+  id              String            @id @default(uuid())
+  contentType     ContentType
+  contentId       String
+  content         String
+  authorId        String?
+  reporterId      String?
+  status          ModerationStatus  @default(PENDING)
+  severity        SeverityLevel     @default(LOW)
+  violationTypes  ViolationType[]
+  moderatorId     String?
+  moderatorNotes  String?
+  reason          String?
+  metadata        Json?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  resolvedAt      DateTime?
+  
+  // Relations
+  author          User?             @relation("ModerationAuthor", fields: [authorId], references: [id])
+  reporter        User?             @relation("ModerationReporter", fields: [reporterId], references: [id])
+  moderator       User?             @relation("ModerationModerator", fields: [moderatorId], references: [id])
+  
+  @@index([status])
+  @@index([contentType])
+  @@index([severity])
+  @@index([createdAt])
+  @@index([authorId])
+  @@index([moderatorId])
 }
