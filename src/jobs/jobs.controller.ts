@@ -109,11 +109,11 @@ export class JobsController {
   @Get('my-jobs/stats')
   @UseGuards(RolesGuard)
   @Roles(UserRole.EMPLOYER, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get job statistics for current employer' })
+  @ApiOperation({ summary: 'Get statistics for employer jobs' })
   @ApiQuery({
     name: 'period',
     required: false,
-    description: 'Time period (7d, 30d, 90d)',
+    description: 'Time period for stats (e.g., 30d, 7d)',
   })
   @ApiResponse({
     status: 200,
@@ -121,7 +121,7 @@ export class JobsController {
   })
   async getMyJobStats(
     @CurrentUser() user: any,
-    @Query('period') period: string = '30d',
+    @Query('period') period?: string,
   ) {
     try {
       const stats = await this.jobsService.getEmployerJobStats(user.id, period);
@@ -138,8 +138,50 @@ export class JobsController {
     }
   }
 
+  @Get('my-jobs/all-applications')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.EMPLOYER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get all applications across all employer jobs' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'Filter by application status',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    description: 'Search candidates by name, email, university, etc.',
+  })
+  @ApiQuery({ name: 'page', required: false, description: 'Page number' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Items per page' })
+  @ApiResponse({
+    status: 200,
+    description: 'All applications retrieved successfully',
+  })
+  async getAllEmployerApplications(
+    @CurrentUser() user: any,
+    @Query() query: any,
+  ) {
+    try {
+      const result = await this.jobsService.getAllEmployerApplications(
+        user.id,
+        query,
+      );
+      return {
+        success: true,
+        message: 'All applications retrieved successfully',
+        ...result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Failed to retrieve applications',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   @Get(':id')
-  @ApiOperation({ summary: 'Get job by ID' })
+  @ApiOperation({ summary: 'Get a specific job by ID' })
   @ApiParam({ name: 'id', description: 'Job ID' })
   @ApiResponse({ status: 200, description: 'Job retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Job not found' })

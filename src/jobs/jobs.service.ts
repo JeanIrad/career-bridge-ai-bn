@@ -473,6 +473,129 @@ export class JobsService {
 
   // ============= APPLICATION OPERATIONS =============
 
+  async getAllEmployerApplications(employerId: string, query: any) {
+    const { status, search, page = 1, limit = 10 } = query;
+
+    // Ensure page and limit are numbers
+    const pageNum = parseInt(page.toString(), 10) || 1;
+    const limitNum = parseInt(limit.toString(), 10) || 10;
+    const skip = (pageNum - 1) * limitNum;
+
+    // Get all jobs for this employer
+    const employerJobs = await this.prisma.job.findMany({
+      where: { postedById: employerId, deletedAt: null },
+      select: { id: true },
+    });
+
+    const jobIds = employerJobs.map((job) => job.id);
+
+    if (jobIds.length === 0) {
+      return {
+        data: [],
+        pagination: {
+          total: 0,
+          page: pageNum,
+          limit: limitNum,
+          totalPages: 0,
+        },
+      };
+    }
+
+    const where: Prisma.JobApplicationWhereInput = {
+      jobId: { in: jobIds },
+      deletedAt: null,
+    };
+
+    if (status) {
+      where.status = status as ApplicationStatus;
+    }
+
+    if (search) {
+      where.OR = [
+        {
+          user: {
+            OR: [
+              { firstName: { contains: search, mode: 'insensitive' } },
+              { lastName: { contains: search, mode: 'insensitive' } },
+              { email: { contains: search, mode: 'insensitive' } },
+              { university: { contains: search, mode: 'insensitive' } },
+              { major: { contains: search, mode: 'insensitive' } },
+            ],
+          },
+        },
+        {
+          job: {
+            title: { contains: search, mode: 'insensitive' },
+          },
+        },
+      ];
+    }
+
+    const [applications, total] = await Promise.all([
+      this.prisma.jobApplication.findMany({
+        where,
+        skip,
+        take: limitNum,
+        orderBy: { appliedAt: 'desc' },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phoneNumber: true,
+              avatar: true,
+              university: true,
+              major: true,
+              graduationYear: true,
+              gpa: true,
+              headline: true,
+              bio: true,
+              city: true,
+              state: true,
+              country: true,
+              skills: {
+                select: {
+                  id: true,
+                  name: true,
+                  endorsements: true,
+                },
+              },
+            },
+          },
+          job: {
+            select: {
+              id: true,
+              title: true,
+              type: true,
+              location: true,
+            },
+          },
+          interviews: {
+            select: {
+              id: true,
+              interviewType: true,
+              scheduledAt: true,
+              status: true,
+            },
+          },
+        },
+      }),
+      this.prisma.jobApplication.count({ where }),
+    ]);
+
+    return {
+      data: applications,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum),
+      },
+    };
+  }
+
   async applyToJob(
     jobId: string,
     userId: string,

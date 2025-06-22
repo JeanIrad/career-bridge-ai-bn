@@ -489,6 +489,27 @@ export class UsersController {
     };
   }
 
+  @Get(':userId/profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get user profile by ID (alternative endpoint)' })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'User profile retrieved successfully',
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async getUserProfileAlt(@Param('userId') userId: string) {
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Remove sensitive information
+    const { password, ...userProfile } = user;
+    return userProfile;
+  }
+
   // ============= ADMIN OPERATIONS =============
 
   @Post('admin/create')
