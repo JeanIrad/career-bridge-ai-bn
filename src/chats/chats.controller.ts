@@ -45,16 +45,26 @@ export class ChatsController {
     description: 'Messages and conversations retrieved successfully',
   })
   async getUserConversations(@CurrentUser() user: any) {
+    console.log(`📞 Getting conversations for user: ${user.id}`);
+
     const [messages, groups] = await Promise.all([
       this.chatsService.getMessagesForUser(user.id),
       this.chatsService.getUserGroups(user.id),
     ]);
+
+    console.log(
+      `📨 Found ${messages.length} messages and ${groups.length} groups for user ${user.id}`,
+    );
 
     // Process messages to create conversations
     const conversations = await this.chatsService.processConversations(
       messages,
       groups,
       user.id,
+    );
+
+    console.log(
+      `💬 Processed ${conversations.length} conversations for user ${user.id}`,
     );
 
     return {
@@ -121,18 +131,39 @@ export class ChatsController {
   async getConversationMessages(
     @Param('conversationId') conversationId: string,
     @CurrentUser() user: any,
-    @Query('limit') limit = 50,
-    @Query('offset') offset = 0,
+    @Query('limit') limitStr = '50',
+    @Query('offset') offsetStr = '0',
   ) {
+    const limit = parseInt(limitStr, 10) || 50;
+    const offset = parseInt(offsetStr, 10) || 0;
+    console.log(`📥 Getting messages for conversation: ${conversationId}`);
+
     let messages;
     if (conversationId.startsWith('group_')) {
       const groupId = conversationId.replace('group_', '');
+      console.log(`🏠 Fetching group messages for group: ${groupId}`);
       messages = await this.chatsService.getGroupMessages(
         groupId,
         limit,
         offset,
       );
+    } else if (conversationId.startsWith('direct_')) {
+      // Handle direct messages with "direct_" prefix
+      const targetUserId = conversationId.replace('direct_', '');
+      console.log(
+        `👥 Fetching direct messages between ${user.id} and ${targetUserId}`,
+      );
+      messages = await this.chatsService.getDirectMessages(
+        user.id,
+        targetUserId,
+        limit,
+        offset,
+      );
     } else {
+      // Handle direct messages without prefix (legacy support)
+      console.log(
+        `👥 Fetching direct messages between ${user.id} and ${conversationId}`,
+      );
       messages = await this.chatsService.getDirectMessages(
         user.id,
         conversationId,
@@ -140,6 +171,10 @@ export class ChatsController {
         offset,
       );
     }
+
+    console.log(
+      `📨 Found ${messages.length} messages for conversation ${conversationId}`,
+    );
 
     return {
       success: true,

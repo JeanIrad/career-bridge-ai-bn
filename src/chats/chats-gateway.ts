@@ -226,13 +226,21 @@ export class ChatGatway implements OnGatewayConnection, OnGatewayDisconnect {
 
         const messagePayload = {
           sender:
-            user?.firstName + ' ' + user?.lastName ||
+            user?.name ||
+            (user?.firstName && user?.lastName
+              ? `${user.firstName} ${user.lastName}`
+              : '') ||
             user?.username ||
-            user?.email,
+            user?.email ||
+            'Unknown User',
           content: messageData.content,
           timestamp: new Date().toISOString(),
           senderId: user.id,
           messageId: savedMessage?.id,
+          recipients: savedMessage?.recipients || [],
+          recipientCount: savedMessage?.recipientCount || 0,
+          type: savedMessage?.type || 'group',
+          groupId: messageData.groupId,
         };
 
         this.logger.log(
@@ -244,11 +252,13 @@ export class ChatGatway implements OnGatewayConnection, OnGatewayDisconnect {
           .to(`group_${messageData.groupId}`)
           .emit('receiveGroupMessage', messagePayload);
 
-        // Also emit to sender for confirmation
+        // Also emit to sender for confirmation with recipient info
         client.emit('messageSent', {
           status: 'success',
           messageId: savedMessage?.id,
           groupId: messageData.groupId,
+          recipients: savedMessage?.recipients || [],
+          recipientCount: savedMessage?.recipientCount || 0,
         });
 
         this.logger.log(
@@ -294,12 +304,22 @@ export class ChatGatway implements OnGatewayConnection, OnGatewayDisconnect {
             isOwn: false,
             sender: {
               id: user.id,
-              firstName: user.firstName,
-              lastName: user.lastName,
+              firstName: user.firstName || '',
+              lastName: user.lastName || '',
               avatar: user.avatar,
               email: user.email,
-              name: user.firstName + ' ' + user.lastName,
+              name:
+                user.name ||
+                (user.firstName && user.lastName
+                  ? `${user.firstName} ${user.lastName}`
+                  : '') ||
+                user.username ||
+                user.email ||
+                'Unknown User',
             },
+            recipients: savedMessage?.recipients || [],
+            recipientCount: savedMessage?.recipientCount || 1,
+            type: savedMessage?.type || 'direct',
           };
 
           this.logger.log(
@@ -317,15 +337,17 @@ export class ChatGatway implements OnGatewayConnection, OnGatewayDisconnect {
           };
           client.emit('receiveMessage', senderPayload);
 
-          // Send delivery confirmation
+          // Send delivery confirmation with recipient info
           client.emit('messageSent', {
             status: 'delivered',
             messageId: savedMessage?.id,
             targetUserId: messageData.targetUserId,
+            recipients: savedMessage?.recipients || [],
+            recipientCount: savedMessage?.recipientCount || 1,
           });
 
           this.logger.log(
-            `✅ Direct message sent to user ${messageData.targetUserId}`,
+            `✅ Direct message sent to user ${messageData.targetUserId}, recipients: ${savedMessage?.recipientCount || 1}`,
           );
         } else {
           this.logger.warn(
@@ -336,6 +358,8 @@ export class ChatGatway implements OnGatewayConnection, OnGatewayDisconnect {
             status: 'saved',
             message: 'User is offline, message saved',
             messageId: savedMessage?.id,
+            recipients: savedMessage?.recipients || [],
+            recipientCount: savedMessage?.recipientCount || 1,
           });
         }
       } else {

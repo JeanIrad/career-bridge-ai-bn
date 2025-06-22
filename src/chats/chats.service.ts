@@ -33,19 +33,34 @@ export class ChatsService {
     }
 
     let group;
+    let groupMembers = [];
     if (groupId) {
       group = await this.prisma.chatGroup.findUnique({
         where: {
           id: groupId,
           deletedAt: null, // Only find active groups
         },
+        include: {
+          members: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              avatar: true,
+              email: true,
+            },
+          },
+        },
       });
       if (!group) throw new NotFoundException('Group not found');
+
+      // Get all group members except the sender as recipients
+      groupMembers = group.members.filter((member) => member.id !== senderId);
     }
 
     if (groupId) {
-      // Create group message
-      return await this.prisma.groupMessage.create({
+      // Create group message with recipient tracking
+      const savedMessage = await this.prisma.groupMessage.create({
         data: {
           content,
           senderId,
@@ -58,11 +73,32 @@ export class ChatsService {
               firstName: true,
               lastName: true,
               avatar: true,
+              email: true,
             },
           },
-          group: true,
+          group: {
+            include: {
+              members: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  avatar: true,
+                  email: true,
+                },
+              },
+            },
+          },
         },
       });
+
+      // Return message with explicit recipient information
+      return {
+        ...savedMessage,
+        recipients: groupMembers,
+        recipientCount: groupMembers.length,
+        type: 'group',
+      };
     } else if (recipientId) {
       // For direct messages, we need to create or find a chat first
       let chat = await this.prisma.chat.findFirst({
@@ -83,7 +119,7 @@ export class ChatsService {
         });
       }
 
-      return await this.prisma.message.create({
+      const savedMessage = await this.prisma.message.create({
         data: {
           content,
           senderId,
@@ -97,6 +133,7 @@ export class ChatsService {
               firstName: true,
               lastName: true,
               avatar: true,
+              email: true,
             },
           },
           recipient: {
@@ -105,10 +142,19 @@ export class ChatsService {
               firstName: true,
               lastName: true,
               avatar: true,
+              email: true,
             },
           },
         },
       });
+
+      // Return message with recipient information
+      return {
+        ...savedMessage,
+        recipients: [savedMessage.recipient],
+        recipientCount: 1,
+        type: 'direct',
+      };
     }
   }
 
@@ -116,7 +162,7 @@ export class ChatsService {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
-    if (!user) throw new NotFoundException('User not found'); // Fixed: was throwing if user exists
+    if (!user) throw new NotFoundException('User not found');
 
     // Get messages from chats where user is a participant
     const chats = await this.prisma.chat.findMany({
@@ -140,10 +186,20 @@ export class ChatsService {
             firstName: true,
             lastName: true,
             avatar: true,
+            email: true,
+          },
+        },
+        recipient: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+            email: true,
           },
         },
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: 'desc' }, // Changed to desc to get recent messages first
     });
   }
 
@@ -413,10 +469,21 @@ export class ChatsService {
         id: groupId,
         deletedAt: null,
       },
+      include: {
+        members: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+            email: true,
+          },
+        },
+      },
     });
     if (!group) throw new NotFoundException('Group not found');
 
-    return await this.prisma.groupMessage.findMany({
+    const messages = await this.prisma.groupMessage.findMany({
       where: { groupId },
       include: {
         sender: {
@@ -432,6 +499,19 @@ export class ChatsService {
       orderBy: { createdAt: 'desc' },
       take: limit,
       skip: offset,
+    });
+
+    // Add recipient information to each message
+    return messages.map((message) => {
+      const recipients = group.members.filter(
+        (member) => member.id !== message.senderId,
+      );
+      return {
+        ...message,
+        recipients,
+        recipientCount: recipients.length,
+        type: 'group',
+      };
     });
   }
 
@@ -455,10 +535,31 @@ export class ChatsService {
       return []; // No conversation yet
     }
 
-    return await this.prisma.message.findMany({
+    // Get the target user info for recipient data
+    const targetUser = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        avatar: true,
+        email: true,
+      },
+    });
+
+    const messages = await this.prisma.message.findMany({
       where: { chatId: chat.id },
       include: {
         sender: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+            email: true,
+          },
+        },
+        recipient: {
           select: {
             id: true,
             firstName: true,
@@ -472,6 +573,18 @@ export class ChatsService {
       take: limit,
       skip: offset,
     });
+
+    // Add consistent recipient information to each message
+    return messages.map((message) => ({
+      ...message,
+      recipients: message.recipient
+        ? [message.recipient]
+        : targetUser
+          ? [targetUser]
+          : [],
+      recipientCount: 1,
+      type: 'direct',
+    }));
   }
 
   async markMessagesAsRead(userId: string, messageIds: string[]) {
