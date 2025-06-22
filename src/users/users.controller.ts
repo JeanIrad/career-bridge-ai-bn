@@ -11,8 +11,11 @@ import {
   HttpStatus,
   HttpCode,
   BadRequestException,
+  NotFoundException,
   UseInterceptors,
   UploadedFile,
+  UsePipes,
+  Request,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -26,6 +29,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { QueryArrayTransformPipe } from '../common/pipes/query-array-transform.pipe';
 import { UsersService } from './users.service';
 import {
   UpdateUserProfileDto,
@@ -47,6 +51,13 @@ import {
   DeletedUserResponseDto,
   HardDeleteResponseDto,
   CleanupResponseDto,
+  CreateUserResponseDto,
+  CreateUserByAdminDto,
+  UserStatsDto,
+  ComprehensiveAnalyticsDto,
+  AnalyticsFiltersDto,
+  ExportReportDto,
+  ChangePasswordDto,
 } from './dto/user.dto';
 import { UserRole } from '@prisma/client';
 
@@ -129,6 +140,38 @@ export class UsersController {
       success: true,
       message: 'Resume uploaded successfully',
       data: { resume: updatedUser.resume },
+    };
+  }
+
+  @Patch('me/change-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Change user password' })
+  @ApiResponse({ status: 200, description: 'Password changed successfully' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid current password or password validation failed',
+  })
+  async changePassword(
+    @CurrentUser() user: any,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ) {
+    // Validate that new password and confirm password match
+    if (changePasswordDto.newPassword !== changePasswordDto.confirmPassword) {
+      throw new BadRequestException(
+        'New password and confirm password do not match',
+      );
+    }
+
+    const result = await this.usersService.changePassword(
+      user.id,
+      changePasswordDto.currentPassword,
+      changePasswordDto.newPassword,
+    );
+
+    return {
+      success: true,
+      message: result.message,
     };
   }
 
@@ -330,6 +373,7 @@ export class UsersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Search users with advanced filters' })
   @ApiResponse({ status: 200, description: 'Users retrieved successfully' })
+  @UsePipes(new QueryArrayTransformPipe())
   async searchUsers(@Query() searchDto: UserSearchDto) {
     const result = await this.usersService.searchUsers(searchDto);
     return {
@@ -343,6 +387,7 @@ export class UsersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all students with filters' })
   @ApiResponse({ status: 200, description: 'Students retrieved successfully' })
+  @UsePipes(new QueryArrayTransformPipe())
   async getStudents(@Query() searchDto: UserSearchDto) {
     const result = await this.usersService.getStudents(searchDto);
     return {
@@ -356,6 +401,7 @@ export class UsersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all alumni with filters' })
   @ApiResponse({ status: 200, description: 'Alumni retrieved successfully' })
+  @UsePipes(new QueryArrayTransformPipe())
   async getAlumni(@Query() searchDto: UserSearchDto) {
     const result = await this.usersService.getAlumni(searchDto);
     return {
@@ -369,6 +415,7 @@ export class UsersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all employers with filters' })
   @ApiResponse({ status: 200, description: 'Employers retrieved successfully' })
+  @UsePipes(new QueryArrayTransformPipe())
   async getEmployers(@Query() searchDto: UserSearchDto) {
     const result = await this.usersService.getEmployers(searchDto);
     return {
@@ -385,6 +432,7 @@ export class UsersController {
     status: 200,
     description: 'Professors retrieved successfully',
   })
+  @UsePipes(new QueryArrayTransformPipe())
   async getProfessors(@Query() searchDto: UserSearchDto) {
     const result = await this.usersService.getProfessors(searchDto);
     return {
@@ -441,7 +489,84 @@ export class UsersController {
     };
   }
 
+  @Get(':userId/profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get user profile by ID (alternative endpoint)' })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'User profile retrieved successfully',
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async getUserProfileAlt(@Param('userId') userId: string) {
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Remove sensitive information
+    const { password, ...userProfile } = user;
+    return userProfile;
+  }
+
   // ============= ADMIN OPERATIONS =============
+
+  @Post('admin/create')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a new user (Admin only)' })
+  @ApiResponse({
+    status: 201,
+    description: 'User created successfully',
+    type: CreateUserResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  @ApiResponse({ status: 409, description: 'User already exists' })
+  async createUserByAdmin(
+    @CurrentUser() admin: any,
+    @Body() createUserDto: CreateUserByAdminDto,
+  ) {
+    const result = await this.usersService.createUserByAdmin(
+      admin.id,
+      createUserDto,
+    );
+    return {
+      success: true,
+      message: 'User created successfully',
+      data: result,
+    };
+  }
+
+  @Get('admin/users')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all users for admin management' })
+  @ApiResponse({ status: 200, description: 'Users retrieved successfully' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  @UsePipes(new QueryArrayTransformPipe())
+  async getAdminUsers(
+    @CurrentUser() admin: any,
+    @Query() searchDto: UserSearchDto,
+  ) {
+    // Verify admin role
+    await this.usersService.findByIdWithRole(admin.id, [
+      UserRole.ADMIN,
+      UserRole.SUPER_ADMIN,
+    ]);
+
+    const result = await this.usersService.searchUsers(searchDto);
+    return {
+      success: true,
+      ...result,
+    };
+  }
 
   @Patch(':userId/verify')
   @UseGuards(JwtAuthGuard)
@@ -496,6 +621,87 @@ export class UsersController {
     };
   }
 
+  @Patch(':userId/suspend')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Suspend a user account (Admin only)' })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiResponse({ status: 200, description: 'User suspended successfully' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  async suspendUser(
+    @CurrentUser() admin: any,
+    @Param('userId') userId: string,
+    @Body() body: { reason?: string },
+  ) {
+    const result = await this.usersService.updateAccountStatus(
+      admin.id,
+      userId,
+      { status: 'SUSPENDED', reason: body.reason },
+    );
+    return {
+      success: true,
+      message: 'User suspended successfully',
+      data: result,
+    };
+  }
+
+  @Patch(':userId/activate')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Activate a user account (Admin only)' })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiResponse({ status: 200, description: 'User activated successfully' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  async activateUser(
+    @CurrentUser() admin: any,
+    @Param('userId') userId: string,
+    @Body() body: { reason?: string },
+  ) {
+    const result = await this.usersService.updateAccountStatus(
+      admin.id,
+      userId,
+      { status: 'ACTIVE', reason: body.reason },
+    );
+    return {
+      success: true,
+      message: 'User activated successfully',
+      data: result,
+    };
+  }
+
+  @Patch(':userId/deactivate')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Deactivate a user account (Admin only)' })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiResponse({ status: 200, description: 'User deactivated successfully' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  async deactivateUser(
+    @CurrentUser() admin: any,
+    @Param('userId') userId: string,
+    @Body() body: { reason?: string },
+  ) {
+    const result = await this.usersService.updateAccountStatus(
+      admin.id,
+      userId,
+      { status: 'INACTIVE', reason: body.reason },
+    );
+    return {
+      success: true,
+      message: 'User deactivated successfully',
+      data: result,
+    };
+  }
+
   // ============= ANALYTICS & STATISTICS =============
 
   @Get('admin/stats')
@@ -505,6 +711,7 @@ export class UsersController {
   @ApiResponse({
     status: 200,
     description: 'Statistics retrieved successfully',
+    type: UserStatsDto,
   })
   @ApiResponse({
     status: 403,
@@ -521,6 +728,169 @@ export class UsersController {
     return {
       success: true,
       data: stats,
+    };
+  }
+
+  @Get('admin/analytics')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get comprehensive analytics data (Admin only)' })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    type: String,
+    example: '2024-01-01',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    type: String,
+    example: '2024-12-31',
+  })
+  @ApiQuery({
+    name: 'roles',
+    required: false,
+    type: [String],
+    example: ['STUDENT', 'ALUMNI'],
+  })
+  @ApiQuery({
+    name: 'genders',
+    required: false,
+    type: [String],
+    example: ['MALE', 'FEMALE'],
+  })
+  @ApiQuery({
+    name: 'countries',
+    required: false,
+    type: [String],
+    example: ['US', 'CA'],
+  })
+  @ApiQuery({ name: 'isVerified', required: false, type: Boolean })
+  @ApiQuery({
+    name: 'accountStatus',
+    required: false,
+    type: [String],
+    example: ['ACTIVE'],
+  })
+  @ApiQuery({
+    name: 'timeRange',
+    required: false,
+    type: String,
+    example: '30d',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Analytics data retrieved successfully',
+    type: ComprehensiveAnalyticsDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  async getComprehensiveAnalytics(
+    @CurrentUser() admin: any,
+    @Query() filters: AnalyticsFiltersDto,
+  ) {
+    // Verify admin role in service
+    await this.usersService.findByIdWithRole(admin.id, [
+      UserRole.ADMIN,
+      UserRole.SUPER_ADMIN,
+    ]);
+
+    const analytics =
+      await this.usersService.getComprehensiveAnalytics(filters);
+    return {
+      success: true,
+      data: analytics,
+    };
+  }
+
+  @Post('admin/analytics/export')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Export analytics report (Admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Report exported successfully',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  async exportAnalyticsReport(
+    @CurrentUser() admin: any,
+    @Body() exportDto: ExportReportDto,
+  ) {
+    // Verify admin role in service
+    await this.usersService.findByIdWithRole(admin.id, [
+      UserRole.ADMIN,
+      UserRole.SUPER_ADMIN,
+    ]);
+
+    const exportData = await this.usersService.exportAnalyticsReport(exportDto);
+    return {
+      success: true,
+      data: exportData,
+    };
+  }
+
+  @Get('admin/recent')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get recent users (Admin only)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiResponse({
+    status: 200,
+    description: 'Recent users retrieved successfully',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  async getRecentUsers(
+    @CurrentUser() admin: any,
+    @Query('limit') limit: number = 10,
+  ) {
+    // Verify admin role
+    await this.usersService.findByIdWithRole(admin.id, [
+      UserRole.ADMIN,
+      UserRole.SUPER_ADMIN,
+    ]);
+
+    const users = await this.usersService.getRecentUsers(limit);
+    return {
+      success: true,
+      data: users,
+    };
+  }
+
+  @Get('admin/pending-verification')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get users pending verification (Admin only)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiResponse({
+    status: 200,
+    description: 'Pending verification users retrieved successfully',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  async getPendingVerificationUsers(
+    @CurrentUser() admin: any,
+    @Query('limit') limit: number = 10,
+  ) {
+    // Verify admin role
+    await this.usersService.findByIdWithRole(admin.id, [
+      UserRole.ADMIN,
+      UserRole.SUPER_ADMIN,
+    ]);
+
+    const users = await this.usersService.getPendingVerificationUsers(limit);
+    return {
+      success: true,
+      data: users,
     };
   }
 
@@ -705,5 +1075,33 @@ export class UsersController {
     );
 
     return result;
+  }
+
+  @Get('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiResponse({
+    status: 200,
+    description: 'User profile retrieved successfully',
+  })
+  async getCurrentUserProfile(@Request() req) {
+    const user = await this.usersService.findById(req.user.id);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    // Return user profile without sensitive information
+    const { password, ...userProfile } = user;
+    return userProfile;
+  }
+
+  @Patch('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Update current user profile' })
+  @ApiResponse({
+    status: 200,
+    description: 'User profile updated successfully',
+  })
+  async updateCurrentUserProfile(@Request() req, @Body() updateData: any) {
+    return this.usersService.updateProfile(req.user.id, updateData);
   }
 }

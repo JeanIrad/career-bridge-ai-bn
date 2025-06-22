@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-
+import { main as randomSeeds } from './random-seeds';
 const prisma = new PrismaClient();
 
 async function main() {
@@ -34,7 +34,7 @@ async function main() {
 
   // Run the complete seed
   // await completeSeeds()
-  // await seed()
+  // await randomSeeds();
 }
 
 main()

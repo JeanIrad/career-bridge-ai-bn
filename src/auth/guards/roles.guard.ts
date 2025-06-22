@@ -7,38 +7,25 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { UserRole } from '@prisma/client';
+import { ROLES_KEY } from '../decorators/roles.decorator';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
   private readonly logger = new Logger(RolesGuard.name);
 
-  constructor(private readonly reflector: Reflector) {}
+  constructor(private reflector: Reflector) {}
 
-  async canActivate(context: ExecutionContext): Promise<boolean> {
-    // Get required roles from method or class metadata
-    const requiredRoles =
-      this.reflector.get<UserRole[]>('roles', context.getHandler()) ||
-      this.reflector.get<UserRole[]>('roles', context.getClass());
+  canActivate(context: ExecutionContext): boolean {
+    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(
+      ROLES_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
-    if (!requiredRoles || requiredRoles.length === 0) {
-      // No roles specified, allow access
+    if (!requiredRoles) {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest();
-    const user = request.user;
-
-    if (!user || !user.role || !requiredRoles.includes(user.role)) {
-        throw new ForbiddenException('Access denied: insufficient role');
-      }
-
-    if (!requiredRoles.includes(user.role)) {
-      this.logger.warn(
-        `Access denied: User role "${user.role}" does not match required roles [${requiredRoles.join(', ')}]`,
-      );
-      throw new ForbiddenException('Access denied: Insufficient permissions');
-    }
-
-    return true;
+    const { user } = context.switchToHttp().getRequest();
+    return requiredRoles.some((role) => user.role === role);
   }
 }

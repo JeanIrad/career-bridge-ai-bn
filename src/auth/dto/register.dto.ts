@@ -89,10 +89,12 @@ export class VerifyEmailDto {
   @IsEmail()
   email: string;
 
-  @ApiProperty({ example: '123456' })
+  @ApiProperty({ example: 'abc123def456789...' })
   @IsString()
-  @Matches(/^\d{6}$/, { message: 'Verification code must be 6 digits' })
-  verificationCode: string;
+  @MinLength(32, {
+    message: 'Verification token must be at least 32 characters',
+  })
+  verificationToken: string;
 }
 
 export class ResendVerificationDto {

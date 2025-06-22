@@ -94,22 +94,46 @@ model User {
   backupCodes       BackupCode[]
   securityLogs      SecurityLog[]
   trustedDevices    TrustedDevice[]
-  
+  jobRecommendations JobRecommendation[]
   // Document uploads
   documents         Document[]
+  passwordResetTokens PasswordResetToken[]
+  
+  // Content Moderation relations
+  authoredModerationRequests   ModerationRequest[] @relation("ModerationAuthor")
+  reportedModerationRequests   ModerationRequest[] @relation("ModerationReporter")
+  moderatedRequests            ModerationRequest[] @relation("ModerationModerator")
+  
+  // Company Review relations
+  companyReviews               CompanyReview[]
 }
-
+model JobRecommendation {
+  id        String   @id @default(uuid())
+  userId    String
+  jobId     String
+  score     Float    // AI confidence score (0-1)
+  reasons   Json?    // JSON array of matching reasons
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id])
+  job       Job      @relation(fields: [jobId], references: [id])
+  
+  @@unique([userId, jobId])
+}
 // Enhanced Authentication Models
 model VerificationCode {
   id        String   @id @default(uuid())
   email     String
-  code      String
+  code      String?  // Optional for backward compatibility
+  token     String?  // New: verification token for links
   type      String   // 'email_verification', 'password_reset', 'two_factor', 'account_reactivation'
   expiresAt DateTime
   attempts  Int      @default(0)
+  isUsed    Boolean  @default(false) // New: track if token has been used
   createdAt DateTime @default(now())
 
   @@unique([email, type])
+  @@unique([token]) // Ensure tokens are unique
 }
 
 model UserSession {
@@ -214,23 +238,19 @@ model LoginAttempt {
   @@index([ipAddress, timestamp])
 }
 
-// model Profile {
-//   id            String       @id @default(uuid())
-//   firstName     String
-//   lastName      String
-//   headline      String?
-//   bio           String?
-//   avatar        String?
-//   contactNumber String?
-//   location      String?
-//   socialLinks   Json?
-//   visibility    Visibility   @default(PUBLIC)
-//   user          User         @relation(fields: [userId], references: [id])
-//   userId        String       @unique
-//   education     Education[]
-//   experiences   Experience[]
-//   skills        Skill[]
-// }
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // 'PASSWORD_RESET', 'PASSWORD_SETUP'
+  isUsed    Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+}
 
 model Education {
   id          String   @id @default(uuid())
@@ -285,15 +305,57 @@ model Company {
   website     String?
   industry    String
   size        String
-  location    String
   isVerified  Boolean        @default(false)
   owner       User           @relation(fields: [ownerId], references: [id])
   ownerId     String
   jobs        Job[]
   experiences Experience[]
+  locations   CompanyLocation[]
+  reviews     CompanyReview[]
+  
+  // Enhanced company fields
+  type        String?        // "Private", "Public", "Non-profit", etc.
+  foundedYear Int?
+  specializations String[]
+  phone       String?
+  email       String?
+  linkedIn    String?
+  twitter     String?
+  facebook    String?
+  
   deletedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model CompanyLocation {
+  id          String   @id @default(uuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  // Location details
+  address     String?
+  city        String
+  state       String?
+  country     String
+  zipCode     String?
+  countryCode String?  // ISO country code (US, CA, etc.)
+  
+  // Location metadata
+  isHeadquarters Boolean @default(false)
+  locationType   String? // "headquarters", "branch", "remote", etc.
+  timezone       String?
+  
+  // IP-based detection metadata
+  detectedFromIp Boolean @default(false)
+  ipAddress      String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  
+  @@index([companyId])
+  @@index([country, city])
 }
 
 model Job {
@@ -314,6 +376,7 @@ model Job {
   postedById        String
   applications      JobApplication[]
   deletedAt DateTime?
+  jobRecommendations JobRecommendation[]
 }
 
 model JobApplication {
@@ -330,6 +393,78 @@ model JobApplication {
   userId      String
   deletedAt DateTime?
   createdAt DateTime @default(now())
+  
+  // New relations
+  interviews  Interview[]
+  source      String?           // Source of application (direct, referral, job_board, etc.)
+}
+
+model Interview {
+  id              String           @id @default(uuid())
+  applicationId   String
+  interviewType   InterviewType
+  scheduledAt     DateTime
+  duration        Int?             // Duration in minutes
+  status          InterviewStatus  @default(SCHEDULED)
+  notes           String?
+  feedback        String?
+  rating          Int?             // 1-5 rating
+  interviewerIds  String[]         // Array of interviewer user IDs
+  meetingLink     String?
+  location        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  completedAt     DateTime?
+  
+  // Relations
+  application     JobApplication   @relation(fields: [applicationId], references: [id])
+  
+  @@index([applicationId])
+  @@index([scheduledAt])
+  @@index([status])
+}
+
+model CandidateSource {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SkillInDemand {
+  id              String   @id @default(uuid())
+  skillName       String   @unique
+  demandCount     Int      @default(0)
+  growthPercent   Float    @default(0)
+  lastUpdated     DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model CompanyReview {
+  id          String   @id @default(uuid())
+  companyId   String
+  reviewerId  String
+  rating      Int      // 1-5 rating
+  title       String?
+  content     String
+  pros        String?
+  cons        String?
+  isAnonymous Boolean  @default(false)
+  isVerified  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  
+  // Relations
+  company     Company  @relation(fields: [companyId], references: [id])
+  reviewer    User     @relation(fields: [reviewerId], references: [id])
+  
+  @@index([companyId])
+  @@index([reviewerId])
+  @@index([rating])
 }
 
 model Post {
@@ -434,13 +569,19 @@ model Notification {
   title     String
   content   String
   type      String
+  priority  String?  @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
   link      String?
+  metadata  Json?    // Additional data for the notification
   user      User     @relation(fields: [userId], references: [id])
   userId    String
   deletedAt DateTime?
   updatedAt DateTime @updatedAt
+  
+  @@index([userId, read])
+  @@index([userId, type])
+  @@index([createdAt])
 }
 model ChatGroup {
   id          String         @id @default(uuid())
@@ -487,6 +628,8 @@ enum JobStatus {
 enum ApplicationStatus {
   PENDING
   REVIEWED
+  SHORTLISTED
+  INTERVIEWED
   ACCEPTED
   REJECTED
 }
@@ -539,8 +682,8 @@ enum DocumentType {
   PORTFOLIO
   COVER_LETTER
   RECOMMENDATION_LETTER
-  PROFILE_PICTURE
   COMPANY_LOGO
+  PROFILE_PICTURE
   OTHER
 }
 
@@ -549,4 +692,107 @@ enum VerificationStatus {
   APPROVED
   REJECTED
   REQUIRES_RESUBMISSION
+}
+
+// Content Moderation Enums
+enum ContentType {
+  POST
+  COMMENT
+  MESSAGE
+  PROFILE
+  DOCUMENT
+  IMAGE
+  VIDEO
+  JOB_POSTING
+  COMPANY_DESCRIPTION
+  USER_BIO
+  REVIEW
+}
+
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FLAGGED
+  UNDER_REVIEW
+  AUTO_APPROVED
+  AUTO_REJECTED
+}
+
+enum ViolationType {
+  SPAM
+  HARASSMENT
+  HATE_SPEECH
+  INAPPROPRIATE_CONTENT
+  COPYRIGHT_VIOLATION
+  FAKE_INFORMATION
+  VIOLENCE
+  ADULT_CONTENT
+  DISCRIMINATION
+  SCAM
+  OFF_TOPIC
+  DUPLICATE_CONTENT
+}
+
+enum SeverityLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// Content Moderation Models
+model ModerationRequest {
+  id              String            @id @default(uuid())
+  contentType     ContentType
+  contentId       String
+  content         String
+  authorId        String?
+  reporterId      String?
+  status          ModerationStatus  @default(PENDING)
+  severity        SeverityLevel     @default(LOW)
+  violationTypes  ViolationType[]
+  moderatorId     String?
+  moderatorNotes  String?
+  reason          String?
+  metadata        Json?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  resolvedAt      DateTime?
+  
+  // Relations
+  author          User?             @relation("ModerationAuthor", fields: [authorId], references: [id])
+  reporter        User?             @relation("ModerationReporter", fields: [reporterId], references: [id])
+  moderator       User?             @relation("ModerationModerator", fields: [moderatorId], references: [id])
+  
+  @@index([status])
+  @@index([contentType])
+  @@index([severity])
+  @@index([createdAt])
+  @@index([authorId])
+  @@index([moderatorId])
+}
+
+enum InterviewType {
+  PHONE
+  VIDEO
+  IN_PERSON
+  PHONE_SCREENING
+  TECHNICAL
+  BEHAVIORAL
+  PANEL
+  FINAL
+  HR
+  CODING_CHALLENGE
+  CASE_STUDY
+  PRESENTATION
+}
+
+enum InterviewStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+  NO_SHOW
 }

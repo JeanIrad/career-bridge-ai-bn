@@ -69,13 +69,13 @@ export class AuthService {
       },
     });
 
-    // Generate verification code
-    const verificationCode = this.generateVerificationCode();
+    // Generate verification token
+    const verificationToken = this.generateVerificationToken();
 
-    // Store verification code in database
-    await this.storeVerificationCode(
+    // Store verification token in database
+    await this.storeVerificationToken(
       user.email,
-      verificationCode,
+      verificationToken,
       'email_verification',
     );
 
@@ -84,7 +84,7 @@ export class AuthService {
       await this.mailService.sendEmailVerification(
         user.email,
         user.firstName,
-        verificationCode,
+        verificationToken,
         user.role,
       );
     } catch (error) {
@@ -103,24 +103,24 @@ export class AuthService {
   }
 
   /**
-   * Verify email with verification code
+   * Verify email with verification token
    */
   async verifyEmail(
     email: string,
-    verificationCode: string,
+    verificationToken: string,
   ): Promise<{
     message: string;
     user: Omit<User, 'password'>;
   }> {
-    // Verify the code
-    const isValidCode = await this.verifyCode(
+    // Verify the token
+    const isValidToken = await this.verifyToken(
       email,
-      verificationCode,
+      verificationToken,
       'email_verification',
     );
 
-    if (!isValidCode) {
-      throw new UnauthorizedException('Invalid or expired verification code');
+    if (!isValidToken) {
+      throw new UnauthorizedException('Invalid or expired verification token');
     }
 
     // Update user to verified
@@ -132,8 +132,8 @@ export class AuthService {
       },
     });
 
-    // Delete used verification code
-    await this.deleteVerificationCode(email, 'email_verification');
+    // Mark token as used and delete
+    await this.deleteVerificationToken(email, 'email_verification');
 
     // Send welcome email
     try {
@@ -146,6 +146,13 @@ export class AuthService {
       console.error('Failed to send welcome email:', error);
     }
 
+    // Create welcome notification
+    try {
+      await this.createWelcomeNotification(user.id, user.firstName, user.role);
+    } catch (error) {
+      console.error('Failed to create welcome notification:', error);
+    }
+
     const { password, ...userWithoutPassword } = user;
 
     return {
@@ -155,9 +162,9 @@ export class AuthService {
   }
 
   /**
-   * Resend verification code
+   * Resend verification link
    */
-  async resendVerificationCode(email: string): Promise<{ message: string }> {
+  async resendVerificationLink(email: string): Promise<{ message: string }> {
     const user = await this.usersService.findByEmail(email);
     if (!user) {
       throw new ConflictException('User not found');
@@ -167,13 +174,13 @@ export class AuthService {
       throw new ConflictException('Account is already verified');
     }
 
-    // Generate new verification code
-    const verificationCode = this.generateVerificationCode();
+    // Generate new verification token
+    const verificationToken = this.generateVerificationToken();
 
-    // Store new verification code (this will replace the old one)
-    await this.storeVerificationCode(
+    // Store new verification token (this will replace the old one)
+    await this.storeVerificationToken(
       user.email,
-      verificationCode,
+      verificationToken,
       'email_verification',
     );
 
@@ -181,12 +188,12 @@ export class AuthService {
     await this.mailService.sendEmailVerification(
       user.email,
       user.firstName,
-      verificationCode,
+      verificationToken,
       user.role,
     );
 
     return {
-      message: 'New verification code sent to your email.',
+      message: 'New verification link sent to your email.',
     };
   }
 
@@ -217,7 +224,10 @@ export class AuthService {
         statusMessages[user.accountStatus] || 'Account access is restricted.',
       );
     }
-
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() },
+    });
     const payload: JwtPayload = {
       id: user.id,
       email: user.email,
@@ -405,6 +415,13 @@ export class AuthService {
   }
 
   /**
+   * Generate a secure verification token
+   */
+  private generateVerificationToken(): string {
+    return crypto.randomBytes(32).toString('hex');
+  }
+
+  /**
    * Store verification code in database
    */
   private async storeVerificationCode(
@@ -432,6 +449,40 @@ export class AuthService {
         type,
         expiresAt,
         attempts: 0,
+      },
+    });
+  }
+
+  /**
+   * Store verification token in database
+   */
+  private async storeVerificationToken(
+    email: string,
+    token: string,
+    type: string,
+  ): Promise<void> {
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    await this.prisma.verificationCode.upsert({
+      where: {
+        email_type: {
+          email,
+          type,
+        },
+      },
+      update: {
+        token,
+        expiresAt,
+        attempts: 0,
+        isUsed: false,
+      },
+      create: {
+        email,
+        token,
+        type,
+        expiresAt,
+        attempts: 0,
+        isUsed: false,
       },
     });
   }
@@ -490,6 +541,59 @@ export class AuthService {
   }
 
   /**
+   * Verify verification token
+   */
+  private async verifyToken(
+    email: string,
+    token: string,
+    type: string,
+  ): Promise<boolean> {
+    const verificationRecord = await this.prisma.verificationCode.findUnique({
+      where: {
+        email_type: {
+          email,
+          type,
+        },
+      },
+    });
+
+    if (!verificationRecord || !verificationRecord.token) {
+      return false;
+    }
+
+    // Check if token is expired
+    if (verificationRecord.expiresAt < new Date()) {
+      await this.deleteVerificationToken(email, type);
+      return false;
+    }
+
+    // Check if token has been used
+    if (verificationRecord.isUsed) {
+      return false;
+    }
+
+    // Check if token matches
+    if (verificationRecord.token !== token) {
+      return false;
+    }
+
+    // Mark token as used
+    await this.prisma.verificationCode.update({
+      where: {
+        email_type: {
+          email,
+          type,
+        },
+      },
+      data: {
+        isUsed: true,
+      },
+    });
+
+    return true;
+  }
+
+  /**
    * Delete verification code
    */
   private async deleteVerificationCode(
@@ -502,5 +606,93 @@ export class AuthService {
         type,
       },
     });
+  }
+
+  /**
+   * Delete verification token
+   */
+  private async deleteVerificationToken(
+    email: string,
+    type: string,
+  ): Promise<void> {
+    await this.prisma.verificationCode.deleteMany({
+      where: {
+        email,
+        type,
+      },
+    });
+  }
+
+  /**
+   * Create welcome notification for new users
+   */
+  private async createWelcomeNotification(
+    userId: string,
+    firstName: string,
+    role: string,
+  ): Promise<void> {
+    try {
+      const roleSpecificContent = this.getWelcomeContentByRole(role);
+      const dashboardLink = this.getDashboardLinkByRole(role);
+
+      await this.prisma.notification.create({
+        data: {
+          title: `Welcome to CareerBridge AI, ${firstName}! 🎉`,
+          content: roleSpecificContent,
+          type: 'WELCOME',
+          priority: 'HIGH',
+          userId,
+          link: dashboardLink,
+        },
+      });
+    } catch (error) {
+      console.error('Failed to create welcome notification:', error);
+    }
+  }
+
+  /**
+   * Get welcome content based on user role
+   */
+  private getWelcomeContentByRole(role: string): string {
+    const welcomeMessages: Record<string, string> = {
+      STUDENT:
+        'Explore job opportunities, connect with alumni, and build your professional network!',
+      ALUMNI:
+        'Welcome back! Share your experience and help current students succeed.',
+      EMPLOYER:
+        'Start posting jobs and discover talented candidates from our community.',
+      PROFESSOR:
+        'Manage your students and create engaging academic experiences.',
+      MENTOR:
+        'Begin mentoring students and make a lasting impact on their careers.',
+      UNIVERSITY_STAFF:
+        'Help manage your university community and support student success.',
+      ADMIN:
+        'Welcome to the admin dashboard. You have full access to platform management.',
+      SUPER_ADMIN: 'Welcome, Super Admin. You have complete system control.',
+      OTHER:
+        'Welcome to CareerBridge AI! Explore all the features available to you.',
+    };
+
+    return welcomeMessages[role] || welcomeMessages.OTHER;
+  }
+
+  /**
+   * Get dashboard link based on user role
+   */
+  private getDashboardLinkByRole(role: string): string {
+    const dashboardLinks: Record<string, string> = {
+      STUDENT: '/dashboard/student',
+      ALUMNI: '/dashboard/student',
+      EMPLOYER: '/dashboard/employer',
+      PROFESSOR: '/dashboard/university',
+      MENTOR: '/dashboard/mentor',
+      UNIVERSITY_STAFF: '/dashboard/university',
+      ADMIN: '/dashboard/admin',
+      SUPER_ADMIN: '/dashboard/admin',
+      OTHER: '/dashboard',
+    };
+
+    return dashboardLinks[role] || '/dashboard';
   }
 }

@@ -18,7 +18,8 @@ export interface EmailOptions {
 
 export interface EmailVerificationContext {
   firstName: string;
-  verificationCode: string;
+  email: string;
+  verificationToken: string;
   role: UserRole;
   roleDisplayName: string;
   features: string[];
@@ -63,6 +64,17 @@ export interface WelcomeEmailContext {
   roleDisplayName: string;
   features: string[];
   dashboardUrl: string;
+  baseUrl: string;
+  currentYear: number;
+}
+
+export interface PasswordSetupContext {
+  firstName: string;
+  email: string;
+  passwordSetupLink: string;
+  role: UserRole;
+  roleDisplayName: string;
+  accountType: string;
   baseUrl: string;
   currentYear: number;
 }
@@ -166,12 +178,13 @@ export class MailService {
   async sendEmailVerification(
     email: string,
     firstName: string,
-    verificationCode: string,
+    verificationToken: string,
     role: UserRole,
   ): Promise<boolean> {
     const context: EmailVerificationContext = {
       firstName,
-      verificationCode,
+      email,
+      verificationToken,
       role,
       roleDisplayName: handlebarsHelpers.getRoleDisplayName(role),
       features: handlebarsHelpers.getRoleFeatures(role),
@@ -282,6 +295,45 @@ export class MailService {
       to: email,
       subject: `CareerBridge Security Alert: ${alertType}`,
       template: 'security-alert',
+      context,
+    });
+  }
+
+  // ============= PASSWORD SETUP EMAIL =============
+
+  async sendPasswordSetupEmail(
+    email: string,
+    firstName: string,
+    passwordSetupLink: string,
+    role: UserRole,
+  ): Promise<boolean> {
+    const context: PasswordSetupContext = {
+      firstName,
+      email,
+      passwordSetupLink,
+      role,
+      roleDisplayName: handlebarsHelpers.getRoleDisplayName(role),
+      accountType:
+        role === 'ADMIN'
+          ? 'Administrative'
+          : role === 'EMPLOYER'
+            ? 'Employer'
+            : role === 'PROFESSOR'
+              ? 'Faculty'
+              : role === 'UNIVERSITY_STAFF'
+                ? 'University Staff'
+                : 'User',
+      baseUrl: this.configService.get<string>(
+        'FRONTEND_URL',
+        'http://localhost:3000',
+      ),
+      currentYear: new Date().getFullYear(),
+    };
+
+    return this.sendEmail({
+      to: email,
+      subject: `Welcome to CareerBridge AI - Set Your Password`,
+      template: 'password-setup',
       context,
     });
   }
@@ -436,6 +488,45 @@ export class MailService {
       context,
       attachments,
     });
+  }
+
+  // ============= TEST EMAIL =============
+
+  async sendTestEmail(
+    email: string,
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const result = await this.sendEmail({
+        to: email,
+        subject: 'CareerBridge AI - Test Email',
+        template: 'notification', // Use a simple template
+        context: {
+          firstName: 'Test User',
+          title: 'Test Email',
+          content:
+            'This is a test email to verify that the email service is working correctly.',
+          actionUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+        },
+      });
+
+      if (result) {
+        return {
+          success: true,
+          message: `Test email sent successfully to ${email}`,
+        };
+      } else {
+        return {
+          success: false,
+          message: `Failed to send test email to ${email}`,
+        };
+      }
+    } catch (error) {
+      this.logger.error('Test email failed:', error);
+      return {
+        success: false,
+        message: `Test email failed: ${error.message}`,
+      };
+    }
   }
 
   // ============= EMAIL STATISTICS =============
