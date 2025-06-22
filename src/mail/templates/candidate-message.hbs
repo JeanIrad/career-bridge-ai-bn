@@ -1,0 +1,101 @@
+{{! Candidate Message Email Template }}
+<div class='email-content'>
+  <div class='header'>
+    <h1>💬 Message from {{companyName}}</h1>
+  </div>
+
+  <div class='content'>
+    <p>Dear {{candidateName}},</p>
+
+    <p>You have received a new message from
+      <strong>{{employerName}}</strong>
+      at
+      <strong>{{companyName}}</strong>
+      regarding your application for the
+      <strong>{{jobTitle}}</strong>
+      position.</p>
+
+    <div class='message-content'>
+      <h3>📋 Subject: {{subject}}</h3>
+      <div class='message-body'>
+        {{message}}
+      </div>
+    </div>
+
+    <div class='job-context'>
+      <h3>📌 Application Context</h3>
+      <p><strong>Position:</strong> {{jobTitle}}</p>
+      <p><strong>Company:</strong> {{companyName}}</p>
+    </div>
+
+    <div class='reply-section'>
+      <h3>💭 How to Respond</h3>
+      <p>You can reply directly to this email or contact us at:</p>
+      <p><strong>Email:</strong>
+        <a href='mailto:{{replyEmail}}'>{{replyEmail}}</a></p>
+    </div>
+
+    <div class='tips-box'>
+      <h3>💡 Communication Tips</h3>
+      <ul>
+        <li>Respond promptly to show your continued interest</li>
+        <li>Be professional and courteous in your response</li>
+        <li>Ask clarifying questions if needed</li>
+        <li>Express enthusiasm for the opportunity</li>
+      </ul>
+    </div>
+
+    <p>We appreciate your interest in joining our team at {{companyName}}.</p>
+
+    <p>Best regards,<br />
+      {{employerName}}<br />
+      {{companyName}}</p>
+  </div>
+</div>
+
+<style>
+  .message-content {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+  }
+
+  .message-body {
+    background: white;
+    padding: 15px;
+    border-radius: 5px;
+    margin-top: 10px;
+    border-left: 4px solid #007bff;
+    font-style: italic;
+  }
+
+  .job-context {
+    background: #e9ecef;
+    padding: 15px;
+    border-radius: 5px;
+    margin: 20px 0;
+  }
+
+  .reply-section {
+    background: #d1ecf1;
+    border-left: 4px solid #17a2b8;
+    padding: 15px;
+    margin: 20px 0;
+    border-radius: 5px;
+  }
+
+  .tips-box {
+    background: #d4edda;
+    border-left: 4px solid #28a745;
+    padding: 20px;
+    margin: 20px 0;
+    border-radius: 5px;
+  }
+
+  .tips-box ul {
+    margin: 10px 0;
+    padding-left: 20px;
+  }
+</style>

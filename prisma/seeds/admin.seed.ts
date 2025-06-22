@@ -34,7 +34,7 @@ async function main() {
 
   // Run the complete seed
   // await completeSeeds()
-  await randomSeeds();
+  // await randomSeeds();
 }
 
 main()

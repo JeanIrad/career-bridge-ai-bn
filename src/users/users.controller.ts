@@ -11,9 +11,11 @@ import {
   HttpStatus,
   HttpCode,
   BadRequestException,
+  NotFoundException,
   UseInterceptors,
   UploadedFile,
   UsePipes,
+  Request,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -1052,5 +1054,33 @@ export class UsersController {
     );
 
     return result;
+  }
+
+  @Get('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiResponse({
+    status: 200,
+    description: 'User profile retrieved successfully',
+  })
+  async getCurrentUserProfile(@Request() req) {
+    const user = await this.usersService.findById(req.user.id);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    // Return user profile without sensitive information
+    const { password, ...userProfile } = user;
+    return userProfile;
+  }
+
+  @Patch('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Update current user profile' })
+  @ApiResponse({
+    status: 200,
+    description: 'User profile updated successfully',
+  })
+  async updateCurrentUserProfile(@Request() req, @Body() updateData: any) {
+    return this.usersService.updateProfile(req.user.id, updateData);
   }
 }

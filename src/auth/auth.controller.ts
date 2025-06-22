@@ -12,6 +12,7 @@ import {
   Query,
   Patch,
   Delete,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { AuthService, AuthResponse } from './auth.service';
 import { EnhancedAuthService } from './services/enhanced-auth.service';
@@ -141,6 +142,27 @@ export class AuthController {
   checkAuth(@CurrentUser() user: any): { user: any } {
     const { password, ...userWithoutPassword } = user;
     return { user: userWithoutPassword };
+  }
+
+  @ApiOperation({ summary: 'Test login for Jennifer Smith (Development only)' })
+  @ApiResponse({ status: 200, description: 'Login successful' })
+  @ApiResponse({ status: 401, description: 'Invalid credentials' })
+  @Post('test-login')
+  @HttpCode(HttpStatus.OK)
+  async testLogin(@Body() loginDto: { email: string; password: string }) {
+    // This is specifically for testing Jennifer Smith login
+    if (
+      loginDto.email === 'jennifer.smith@techcorp.com' &&
+      loginDto.password === 'password123'
+    ) {
+      return await this.authService.loginWithValidation({
+        email: loginDto.email,
+        password: loginDto.password,
+      });
+    }
+    throw new UnauthorizedException(
+      'Test login only available for Jennifer Smith',
+    );
   }
 
   // ============= ENHANCED AUTH ENDPOINTS =============

@@ -103,6 +103,9 @@ model User {
   authoredModerationRequests   ModerationRequest[] @relation("ModerationAuthor")
   reportedModerationRequests   ModerationRequest[] @relation("ModerationReporter")
   moderatedRequests            ModerationRequest[] @relation("ModerationModerator")
+  
+  // Company Review relations
+  companyReviews               CompanyReview[]
 }
 model JobRecommendation {
   id        String   @id @default(uuid())
@@ -308,6 +311,7 @@ model Company {
   jobs        Job[]
   experiences Experience[]
   locations   CompanyLocation[]
+  reviews     CompanyReview[]
   
   // Enhanced company fields
   type        String?        // "Private", "Public", "Non-profit", etc.
@@ -389,6 +393,78 @@ model JobApplication {
   userId      String
   deletedAt DateTime?
   createdAt DateTime @default(now())
+  
+  // New relations
+  interviews  Interview[]
+  source      String?           // Source of application (direct, referral, job_board, etc.)
+}
+
+model Interview {
+  id              String           @id @default(uuid())
+  applicationId   String
+  interviewType   InterviewType
+  scheduledAt     DateTime
+  duration        Int?             // Duration in minutes
+  status          InterviewStatus  @default(SCHEDULED)
+  notes           String?
+  feedback        String?
+  rating          Int?             // 1-5 rating
+  interviewerIds  String[]         // Array of interviewer user IDs
+  meetingLink     String?
+  location        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  completedAt     DateTime?
+  
+  // Relations
+  application     JobApplication   @relation(fields: [applicationId], references: [id])
+  
+  @@index([applicationId])
+  @@index([scheduledAt])
+  @@index([status])
+}
+
+model CandidateSource {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SkillInDemand {
+  id              String   @id @default(uuid())
+  skillName       String   @unique
+  demandCount     Int      @default(0)
+  growthPercent   Float    @default(0)
+  lastUpdated     DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model CompanyReview {
+  id          String   @id @default(uuid())
+  companyId   String
+  reviewerId  String
+  rating      Int      // 1-5 rating
+  title       String?
+  content     String
+  pros        String?
+  cons        String?
+  isAnonymous Boolean  @default(false)
+  isVerified  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  
+  // Relations
+  company     Company  @relation(fields: [companyId], references: [id])
+  reviewer    User     @relation(fields: [reviewerId], references: [id])
+  
+  @@index([companyId])
+  @@index([reviewerId])
+  @@index([rating])
 }
 
 model Post {
@@ -552,6 +628,8 @@ enum JobStatus {
 enum ApplicationStatus {
   PENDING
   REVIEWED
+  SHORTLISTED
+  INTERVIEWED
   ACCEPTED
   REJECTED
 }
@@ -693,4 +771,28 @@ model ModerationRequest {
   @@index([createdAt])
   @@index([authorId])
   @@index([moderatorId])
+}
+
+enum InterviewType {
+  PHONE
+  VIDEO
+  IN_PERSON
+  PHONE_SCREENING
+  TECHNICAL
+  BEHAVIORAL
+  PANEL
+  FINAL
+  HR
+  CODING_CHALLENGE
+  CASE_STUDY
+  PRESENTATION
+}
+
+enum InterviewStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+  NO_SHOW
 }
