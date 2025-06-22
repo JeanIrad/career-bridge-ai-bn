@@ -66,7 +66,6 @@ model User {
   events          Event[]
   deletedAt       DateTime? 
   jobApplications JobApplication[]
-  messages        Message[]
   companies       Company[]
   postedJobs      Job[]            @relation("PostedJobs")
   notifications   Notification[]
@@ -106,6 +105,10 @@ model User {
   
   // Company Review relations
   companyReviews               CompanyReview[]
+
+  // Message relations
+  sentMessages     Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
 }
 model JobRecommendation {
   id        String   @id @default(uuid())
@@ -312,6 +315,7 @@ model Company {
   experiences Experience[]
   locations   CompanyLocation[]
   reviews     CompanyReview[]
+  documents   Document[]     @relation("CompanyDocuments")
   
   // Enhanced company fields
   type        String?        // "Private", "Public", "Non-profit", etc.
@@ -322,6 +326,12 @@ model Company {
   linkedIn    String?
   twitter     String?
   facebook    String?
+  
+  // Verification fields
+  verificationStatus VerificationStatus @default(PENDING)
+  verificationNotes  String?
+  verifiedAt         DateTime?
+  verifiedBy         String?
   
   deletedAt DateTime?
   createdAt DateTime @default(now())
@@ -553,15 +563,39 @@ model Chat {
 }
 
 model Message {
-  id        String   @id @default(uuid())
-  content   String
-  createdAt DateTime @default(now())
-  chat      Chat     @relation(fields: [chatId], references: [id])
-  chatId    String
-  sender    User     @relation(fields: [senderId], references: [id])
-  senderId  String
-  deletedAt DateTime?
-  updatedAt DateTime @updatedAt
+  id          String    @id @default(uuid())
+  content     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  chat        Chat      @relation(fields: [chatId], references: [id])
+  chatId      String
+  sender      User      @relation("SentMessages", fields: [senderId], references: [id])
+  senderId    String
+  recipient   User      @relation("ReceivedMessages", fields: [recipientId], references: [id])
+  recipientId String
+  status      MessageStatus @default(SENT)
+  readAt      DateTime?
+  deliveredAt DateTime?
+  metadata    Json?     // For additional message data (typing, reactions, etc.)
+  attachments String[]  // URLs to any attached files
+  replyTo     Message?  @relation("MessageReplies", fields: [replyToId], references: [id])
+  replyToId   String?
+  replies     Message[] @relation("MessageReplies")
+  isEdited    Boolean   @default(false)
+  editHistory Json?     // Track message edit history
+  deletedAt   DateTime?
+
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([chatId])
+  @@index([createdAt])
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+  FAILED
 }
 
 model Notification {
@@ -649,6 +683,7 @@ enum EventStatus {
 model Document {
   id                  String             @id @default(uuid())
   userId              String
+  companyId           String?            // Optional relation to company
   documentType        DocumentType
   originalName        String
   cloudinaryPublicId  String
@@ -666,8 +701,10 @@ model Document {
   createdAt           DateTime           @default(now())
   // Relations
   user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company             Company?           @relation("CompanyDocuments", fields: [companyId], references: [id], onDelete: Cascade)
   
   @@index([userId])
+  @@index([companyId])
   @@index([documentType])
   @@index([verificationStatus])
 }

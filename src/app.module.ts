@@ -16,6 +16,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { RecommendationController } from './recommendation/recommendation.controller';
 import { ContentModerationModule } from './content-moderation/content-moderation.module';
 import { JobsModule } from './jobs/jobs.module';
+import { CompaniesModule } from './companies/companies.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { JobsModule } from './jobs/jobs.module';
     AnalyticsModule, // Comprehensive analytics and reporting
     ContentModerationModule, // Content moderation and safety
     JobsModule, // Job posting and application management
+    CompaniesModule, // Company profile and document management
   ],
   controllers: [AppController, RecommendationController],
   providers: [AppService],

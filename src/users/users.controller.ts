@@ -16,6 +16,9 @@ import {
   UploadedFile,
   UsePipes,
   Request,
+  ParseIntPipe,
+  DefaultValuePipe,
+  UnauthorizedException,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -1103,5 +1106,50 @@ export class UsersController {
   })
   async updateCurrentUserProfile(@Request() req, @Body() updateData: any) {
     return this.usersService.updateProfile(req.user.id, updateData);
+  }
+
+  @Get()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all users with pagination and filters' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 50 })
+  @ApiQuery({ name: 'role', required: false, type: String, enum: UserRole })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiResponse({ status: 200, description: 'Users retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getUsers(
+    @CurrentUser() currentUser: any,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number = 1,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number = 50,
+    @Query('role') role?: string,
+    @Query('search') search?: string,
+  ) {
+    if (!currentUser) {
+      throw new UnauthorizedException('User not authenticated');
+    }
+
+    const users = await this.usersService.findUsers({
+      page,
+      limit,
+      role,
+      search,
+      excludeUserId: currentUser.id,
+    });
+
+    return {
+      success: true,
+      data: {
+        users: users.map((user) => ({
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          role: user.role,
+          avatar: user.avatar,
+          headline: user.headline,
+        })),
+      },
+    };
   }
 }
