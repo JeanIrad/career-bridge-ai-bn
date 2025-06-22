@@ -315,6 +315,7 @@ model Company {
   experiences Experience[]
   locations   CompanyLocation[]
   reviews     CompanyReview[]
+  documents   Document[]     @relation("CompanyDocuments")
   
   // Enhanced company fields
   type        String?        // "Private", "Public", "Non-profit", etc.
@@ -325,6 +326,12 @@ model Company {
   linkedIn    String?
   twitter     String?
   facebook    String?
+  
+  // Verification fields
+  verificationStatus VerificationStatus @default(PENDING)
+  verificationNotes  String?
+  verifiedAt         DateTime?
+  verifiedBy         String?
   
   deletedAt DateTime?
   createdAt DateTime @default(now())
@@ -676,6 +683,7 @@ enum EventStatus {
 model Document {
   id                  String             @id @default(uuid())
   userId              String
+  companyId           String?            // Optional relation to company
   documentType        DocumentType
   originalName        String
   cloudinaryPublicId  String
@@ -693,8 +701,10 @@ model Document {
   createdAt           DateTime           @default(now())
   // Relations
   user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company             Company?           @relation("CompanyDocuments", fields: [companyId], references: [id], onDelete: Cascade)
   
   @@index([userId])
+  @@index([companyId])
   @@index([documentType])
   @@index([verificationStatus])
 }
