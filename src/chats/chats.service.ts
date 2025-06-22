@@ -65,7 +65,6 @@ export class ChatsService {
       });
     } else if (recipientId) {
       // For direct messages, we need to create or find a chat first
-      // This is a simplified approach - you might want to implement proper chat management
       let chat = await this.prisma.chat.findFirst({
         where: {
           participants: {
@@ -88,10 +87,19 @@ export class ChatsService {
         data: {
           content,
           senderId,
+          recipientId,
           chatId: chat.id,
         },
         include: {
           sender: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              avatar: true,
+            },
+          },
+          recipient: {
             select: {
               id: true,
               firstName: true,
@@ -499,5 +507,150 @@ export class ChatsService {
 
   async removeUserFromGroup(groupId: string, userId: string) {
     return await this.leaveGroup(groupId, userId);
+  }
+
+  async processConversations(messages: any[], groups: any[], userId: string) {
+    const conversations = new Map();
+
+    // Process direct messages
+    for (const message of messages) {
+      const otherUserId =
+        message.senderId === userId ? message.recipientId : message.senderId;
+      const otherUser =
+        message.senderId === userId ? message.recipient : message.sender;
+
+      if (otherUserId && otherUser) {
+        const conversationId = `direct_${otherUserId}`;
+
+        if (!conversations.has(conversationId)) {
+          conversations.set(conversationId, {
+            id: conversationId,
+            type: 'direct',
+            name: `${otherUser.firstName} ${otherUser.lastName}`,
+            avatar: otherUser.avatar,
+            lastMessage: message.content,
+            timestamp: message.createdAt,
+            unreadCount: message.senderId !== userId && !message.readAt ? 1 : 0,
+            participants: [otherUser],
+          });
+        } else {
+          const conversation = conversations.get(conversationId);
+          if (new Date(message.createdAt) > new Date(conversation.timestamp)) {
+            conversation.lastMessage = message.content;
+            conversation.timestamp = message.createdAt;
+          }
+          if (message.senderId !== userId && !message.readAt) {
+            conversation.unreadCount = (conversation.unreadCount || 0) + 1;
+          }
+        }
+      }
+    }
+
+    // Process group conversations
+    for (const group of groups) {
+      const conversationId = `group_${group.id}`;
+      const lastMessage = await this.prisma.groupMessage.findFirst({
+        where: { groupId: group.id },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          sender: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              avatar: true,
+            },
+          },
+        },
+      });
+
+      // Get unread count using isEdited as a temporary solution
+      // TODO: Add proper read status tracking
+      const unreadCount = await this.prisma.groupMessage.count({
+        where: {
+          groupId: group.id,
+          senderId: { not: userId },
+          isEdited: false, // Using isEdited=false as a proxy for unread
+        },
+      });
+
+      conversations.set(conversationId, {
+        id: conversationId,
+        type: 'group',
+        name: group.name,
+        avatar: group.avatar,
+        description: group.description,
+        lastMessage: lastMessage?.content,
+        timestamp: lastMessage?.createdAt || group.updatedAt,
+        unreadCount,
+        participants: group.members,
+        owner: group.owner,
+      });
+    }
+
+    return Array.from(conversations.values()).sort((a, b) => {
+      return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+    });
+  }
+
+  async getGroupDetails(groupId: string, userId: string) {
+    const group = await this.prisma.chatGroup.findFirst({
+      where: {
+        id: groupId,
+        deletedAt: null,
+        OR: [{ ownerId: userId }, { members: { some: { id: userId } } }],
+      },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+          },
+        },
+        members: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+          },
+        },
+        messages: {
+          take: 1,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            sender: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                avatar: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            messages: true,
+            members: true,
+          },
+        },
+      },
+    });
+
+    if (!group) {
+      throw new NotFoundException('Group not found or you are not a member');
+    }
+
+    return {
+      ...group,
+      lastMessage: group.messages[0],
+      messageCount: group._count.messages,
+      memberCount: group._count.members,
+      messages: undefined, // Remove messages array from response
+      _count: undefined, // Remove count from response
+    };
   }
 }

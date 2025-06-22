@@ -10,6 +10,7 @@ import {
   HttpStatus,
   HttpCode,
   BadRequestException,
+  Query,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -35,7 +36,38 @@ import {
 export class ChatsController {
   constructor(private readonly chatsService: ChatsService) {}
 
-  @Post('messages')
+  @Get()
+  @ApiOperation({
+    summary: 'Get all messages and conversations for current user',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Messages and conversations retrieved successfully',
+  })
+  async getUserConversations(@CurrentUser() user: any) {
+    const [messages, groups] = await Promise.all([
+      this.chatsService.getMessagesForUser(user.id),
+      this.chatsService.getUserGroups(user.id),
+    ]);
+
+    // Process messages to create conversations
+    const conversations = await this.chatsService.processConversations(
+      messages,
+      groups,
+      user.id,
+    );
+
+    return {
+      success: true,
+      data: {
+        conversations,
+        messages,
+        groups,
+      },
+    };
+  }
+
+  @Post()
   @ApiOperation({ summary: 'Send a message to user or group' })
   @ApiResponse({
     status: 201,
@@ -44,10 +76,6 @@ export class ChatsController {
   @ApiResponse({
     status: 400,
     description: 'Bad request - either recipientId or groupId must be provided',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Recipient or group not found',
   })
   async sendMessage(
     @Body() sendMessageDto: SendMessageDto,
@@ -79,36 +107,40 @@ export class ChatsController {
     };
   }
 
-  @Get('messages')
-  @ApiOperation({ summary: 'Get all messages for current user' })
+  @Get(':conversationId')
+  @ApiOperation({ summary: 'Get messages for a specific conversation' })
+  @ApiParam({
+    name: 'conversationId',
+    description:
+      'Conversation ID (user ID for direct messages, group ID for groups)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Messages retrieved successfully',
   })
-  async getUserMessages(@CurrentUser() user: any) {
-    const messages = await this.chatsService.getMessagesForUser(user.id);
-    return {
-      success: true,
-      data: messages,
-    };
-  }
-
-  @Get('groups/:groupId/messages')
-  @ApiOperation({ summary: 'Get all messages for a specific group' })
-  @ApiParam({ name: 'groupId', description: 'Group ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Group messages retrieved successfully',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Group not found',
-  })
-  async getGroupMessages(
-    @Param('groupId') groupId: string,
+  async getConversationMessages(
+    @Param('conversationId') conversationId: string,
     @CurrentUser() user: any,
+    @Query('limit') limit = 50,
+    @Query('offset') offset = 0,
   ) {
-    const messages = await this.chatsService.getMessagesForGroup(groupId);
+    let messages;
+    if (conversationId.startsWith('group_')) {
+      const groupId = conversationId.replace('group_', '');
+      messages = await this.chatsService.getGroupMessages(
+        groupId,
+        limit,
+        offset,
+      );
+    } else {
+      messages = await this.chatsService.getDirectMessages(
+        user.id,
+        conversationId,
+        limit,
+        offset,
+      );
+    }
+
     return {
       success: true,
       data: messages,
@@ -120,10 +152,6 @@ export class ChatsController {
   @ApiResponse({
     status: 201,
     description: 'Group created successfully',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Bad request',
   })
   async createGroup(
     @Body() createChatGroupDto: CreateChatGroupDto,
@@ -140,17 +168,21 @@ export class ChatsController {
     };
   }
 
-  @Get('groups')
-  @ApiOperation({ summary: 'Get all groups for current user' })
+  @Get('groups/:groupId')
+  @ApiOperation({ summary: 'Get group details' })
+  @ApiParam({ name: 'groupId', description: 'Group ID' })
   @ApiResponse({
     status: 200,
-    description: 'Groups retrieved successfully',
+    description: 'Group details retrieved successfully',
   })
-  async getUserGroups(@CurrentUser() user: any) {
-    const groups = await this.chatsService.getUserGroups(user.id);
+  async getGroupDetails(
+    @Param('groupId') groupId: string,
+    @CurrentUser() user: any,
+  ) {
+    const group = await this.chatsService.getGroupDetails(groupId, user.id);
     return {
       success: true,
-      data: groups,
+      data: group,
     };
   }
 
@@ -160,10 +192,6 @@ export class ChatsController {
   @ApiResponse({
     status: 200,
     description: 'Members added successfully',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Group not found',
   })
   async addMembersToGroup(
     @Param('groupId') groupId: string,
@@ -188,14 +216,6 @@ export class ChatsController {
     status: 200,
     description: 'Successfully left the group',
   })
-  @ApiResponse({
-    status: 404,
-    description: 'Group not found or user not a member',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Owner cannot leave the group',
-  })
   @HttpCode(HttpStatus.OK)
   async leaveGroup(
     @Param('groupId') groupId: string,
@@ -216,14 +236,6 @@ export class ChatsController {
     status: 200,
     description: 'Group deleted successfully',
   })
-  @ApiResponse({
-    status: 404,
-    description: 'Group not found',
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Only group owner can delete the group',
-  })
   async deleteGroup(
     @Param('groupId') groupId: string,
     @CurrentUser() user: any,
@@ -232,35 +244,6 @@ export class ChatsController {
     return {
       success: true,
       message: 'Group deleted successfully',
-    };
-  }
-
-  @Get('groups/:groupId')
-  @ApiOperation({ summary: 'Get group details' })
-  @ApiParam({ name: 'groupId', description: 'Group ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Group details retrieved successfully',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Group not found',
-  })
-  async getGroupDetails(
-    @Param('groupId') groupId: string,
-    @CurrentUser() user: any,
-  ) {
-    // We can reuse the existing logic by getting user groups and filtering
-    const userGroups = await this.chatsService.getUserGroups(user.id);
-    const group = userGroups.find((g) => g.id === groupId);
-
-    if (!group) {
-      throw new BadRequestException('Group not found or you are not a member');
-    }
-
-    return {
-      success: true,
-      data: group,
     };
   }
 }

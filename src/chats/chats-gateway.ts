@@ -14,9 +14,10 @@ import { Server, Socket } from 'socket.io';
 import { ChatsService } from './chats.service';
 
 @WebSocketGateway({
-  namespace: '/api/chats',
+  path: '/api/chats/socket.io',
   cors: {
     origin: '*',
+    credentials: true,
   },
 })
 export class ChatGatway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -34,15 +35,37 @@ export class ChatGatway implements OnGatewayConnection, OnGatewayDisconnect {
 
   async handleConnection(client: Socket) {
     try {
-      const authHeader = client.handshake?.headers?.authorization;
       this.logger.log(`🔌 CONNECTION ATTEMPT from client: ${client.id}`);
-      this.logger.log(`🔑 Auth header:`, authHeader ? 'Present' : 'Missing');
 
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        throw new BadRequestException('No or Invalid Authorization Header');
+      // Try to get token from multiple sources
+      let token: string | null = null;
+
+      // 1. Try authorization header first
+      const authHeader = client.handshake?.headers?.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.split(' ')[1];
+        this.logger.log(`🔑 Token found in Authorization header`);
       }
 
-      const token = authHeader.split(' ')[1];
+      // 2. Try query parameters
+      if (!token && client.handshake?.query?.token) {
+        token = client.handshake.query.token as string;
+        this.logger.log(`🔑 Token found in query parameters`);
+      }
+
+      // 3. Try auth object
+      if (!token && client.handshake?.auth?.token) {
+        token = client.handshake.auth.token as string;
+        this.logger.log(`🔑 Token found in auth object`);
+      }
+
+      this.logger.log(`🔑 Token status:`, token ? 'Present' : 'Missing');
+      this.logger.log(`🔍 Handshake query:`, client.handshake?.query);
+      this.logger.log(`🔍 Handshake auth:`, client.handshake?.auth);
+
+      if (!token) {
+        throw new BadRequestException('No authentication token provided');
+      }
       const user = await this.jwtService.verifyAsync(token, {
         secret: process.env.JWT_SECRET,
       });
@@ -262,15 +285,21 @@ export class ChatGatway implements OnGatewayConnection, OnGatewayDisconnect {
 
         if (targetSocketId) {
           const messagePayload = {
-            sender:
-              user.username ||
-              user.name ||
-              user.firstName + ' ' + user.lastName,
-            text: messageData.content,
-            content: messageData.content, // Add both for compatibility
+            content: messageData.content,
             timestamp: new Date().toISOString(),
             senderId: user.id,
+            recipientId: messageData.targetUserId,
             messageId: savedMessage?.id,
+            status: 'delivered',
+            isOwn: false,
+            sender: {
+              id: user.id,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              avatar: user.avatar,
+              email: user.email,
+              name: user.firstName + ' ' + user.lastName,
+            },
           };
 
           this.logger.log(
@@ -280,7 +309,15 @@ export class ChatGatway implements OnGatewayConnection, OnGatewayDisconnect {
 
           this.server.to(targetSocketId).emit('receiveMessage', messagePayload);
 
-          // Also emit to sender for confirmation
+          // Also emit to sender for confirmation with isOwn=true
+          const senderPayload = {
+            ...messagePayload,
+            isOwn: true,
+            status: 'delivered',
+          };
+          client.emit('receiveMessage', senderPayload);
+
+          // Send delivery confirmation
           client.emit('messageSent', {
             status: 'delivered',
             messageId: savedMessage?.id,
@@ -411,8 +448,7 @@ export class ChatGatway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleGetMessages(
     @MessageBody()
     data: {
-      groupId?: string;
-      targetUserId?: string;
+      conversationId: string;
       limit?: number;
       offset?: number;
     },
@@ -426,30 +462,35 @@ export class ChatGatway implements OnGatewayConnection, OnGatewayDisconnect {
 
       this.logger.log(`Getting messages request from ${client.id}:`, data);
 
+      if (!data.conversationId) {
+        throw new WsException('conversationId is required');
+      }
+
       let messages;
-      if (data.groupId) {
+      if (data.conversationId.startsWith('group_')) {
         // Get group messages
+        const groupId = data.conversationId.replace('group_', '');
         messages = await this.chatService.getGroupMessages(
-          data.groupId,
+          groupId,
           data.limit || 50,
           data.offset || 0,
         );
-      } else if (data.targetUserId) {
+      } else if (data.conversationId.startsWith('direct_')) {
         // Get direct messages between two users
+        const targetUserId = data.conversationId.replace('direct_', '');
         messages = await this.chatService.getDirectMessages(
           user.id,
-          data.targetUserId,
+          targetUserId,
           data.limit || 50,
           data.offset || 0,
         );
       } else {
-        throw new WsException('Either groupId or targetUserId is required');
+        throw new WsException('Invalid conversation ID format');
       }
 
       client.emit('messagesReceived', {
         messages,
-        groupId: data.groupId,
-        targetUserId: data.targetUserId,
+        conversationId: data.conversationId,
         hasMore: messages.length === (data.limit || 50),
       });
 

@@ -29,6 +29,14 @@ import { User, UserRole, AccountStatus, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { ExportUtils } from '../utils/export-utils';
 
+interface FindUsersOptions {
+  page: number;
+  limit: number;
+  role?: string;
+  search?: string;
+  excludeUserId?: string;
+}
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -1642,5 +1650,59 @@ export class UsersService {
       content: JSON.stringify(exportData, null, 2),
       contentType: 'application/json',
     };
+  }
+
+  async findUsers({
+    page,
+    limit,
+    role,
+    search,
+    excludeUserId,
+  }: FindUsersOptions) {
+    const skip = (page - 1) * limit;
+
+    // Build where clause
+    const where: any = {
+      deletedAt: null,
+    };
+
+    // Exclude current user
+    if (excludeUserId) {
+      where.id = { not: excludeUserId };
+    }
+
+    // Add role filter
+    if (role) {
+      where.role = role;
+    }
+
+    // Add search filter
+    if (search) {
+      where.OR = [
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const users = await this.prisma.user.findMany({
+      where,
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+        avatar: true,
+        headline: true,
+      },
+      skip,
+      take: limit,
+      orderBy: {
+        firstName: 'asc',
+      },
+    });
+
+    return users;
   }
 }
