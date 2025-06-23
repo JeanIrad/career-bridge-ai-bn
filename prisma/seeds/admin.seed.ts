@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { main as randomSeeds } from './random-seeds';
+import { seedUniversities } from './universities.seed';
 const prisma = new PrismaClient();
 
 async function main() {
@@ -31,7 +32,7 @@ async function main() {
   });
 
   console.log(`super admin user is created: email: ${admin.email}`);
-
+  await seedUniversities();
   // Run the complete seed
   // await completeSeeds()
   // await randomSeeds();
