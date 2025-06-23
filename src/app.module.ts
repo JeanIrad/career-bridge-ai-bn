@@ -17,6 +17,7 @@ import { RecommendationController } from './recommendation/recommendation.contro
 import { ContentModerationModule } from './content-moderation/content-moderation.module';
 import { JobsModule } from './jobs/jobs.module';
 import { CompaniesModule } from './companies/companies.module';
+import { UniversityPartnersModule } from './university-partners/university-partners.module';
 
 @Module({
   imports: [
@@ -36,7 +37,8 @@ import { CompaniesModule } from './companies/companies.module';
     AnalyticsModule, // Comprehensive analytics and reporting
     ContentModerationModule, // Content moderation and safety
     JobsModule, // Job posting and application management
-    CompaniesModule, // Company profile and document management
+    CompaniesModule,
+    UniversityPartnersModule, // Company profile and document management
   ],
   controllers: [AppController, RecommendationController],
   providers: [AppService],

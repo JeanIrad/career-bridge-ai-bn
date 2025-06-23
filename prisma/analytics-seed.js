@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   console.log('🧹 Cleaning existing analytics data...');
-
+  // await seedUniversities();
   // Clean existing data in correct order
   await prisma.interview.deleteMany();
   await prisma.companyReview.deleteMany();

@@ -1,0 +1,11 @@
+-- CreateEnum
+CREATE TYPE "TwoFactorMethod" AS ENUM ('APP', 'SMS', 'EMAIL', 'NONE');
+
+-- CreateEnum
+CREATE TYPE "PartnershipStatus" AS ENUM ('PENDING', 'ACTIVE', 'INACTIVE', 'EXPIRED', 'TERMINATED');
+
+-- CreateEnum
+CREATE TYPE "UniversityEventType" AS ENUM ('CAREER_FAIR', 'INFO_SESSION', 'WORKSHOP', 'NETWORKING', 'INTERVIEW_DAY', 'HACKATHON', 'OTHER');
+
+-- CreateEnum
+CREATE TYPE "VisitStatus" AS ENUM ('SCHEDULED', 'COMPLETED', 'CANCELLED', 'RESCHEDULED');
