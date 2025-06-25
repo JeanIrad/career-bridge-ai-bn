@@ -1,7 +1,8 @@
 import {
-  NotificationType,
+  // NotificationType,
   NotificationPriority,
 } from '../dto/notification.dto';
+import { NotificationType } from '@prisma/client';
 
 export interface NotificationTemplate {
   title: string;
@@ -25,7 +26,7 @@ export class NotificationHelpers {
     return {
       title: `New Job Alert: ${jobTitle}`,
       content: `A new position at ${companyName} matches your profile. Check it out!`,
-      type: NotificationType.JOB_ALERT,
+      type: NotificationType.JOB_APPLICATION,
       priority: NotificationPriority.MEDIUM,
       link: `/jobs/${jobId}`,
       sendEmail: true,
@@ -68,7 +69,7 @@ export class NotificationHelpers {
     return {
       title: `Event Reminder: ${eventTitle}`,
       content: `Your registered event "${eventTitle}" starts ${timeUntilEvent}. Don't miss it!`,
-      type: NotificationType.EVENT_REMINDER,
+      type: NotificationType.EVENT_REGISTRATION,
       priority: NotificationPriority.HIGH,
       link: `/events/${eventId}`,
       sendEmail: true,
@@ -87,7 +88,7 @@ export class NotificationHelpers {
     return {
       title: `New Connection Request`,
       content: `${requesterName} (${requesterRole}) wants to connect with you.`,
-      type: NotificationType.CONNECTION_REQUEST,
+      type: NotificationType.ALERT,
       priority: NotificationPriority.MEDIUM,
       link: `/connections/requests`,
       sendEmail: false,
@@ -126,7 +127,7 @@ export class NotificationHelpers {
     return {
       title: statusData.title,
       content: statusData.content,
-      type: NotificationType.DOCUMENT_VERIFICATION,
+      type: NotificationType.COMPANY_VERIFICATION,
       priority: statusData.priority,
       link: '/profile/documents',
       sendEmail: true,
@@ -171,7 +172,7 @@ export class NotificationHelpers {
     return {
       title: statusData.title,
       content: statusData.content,
-      type: NotificationType.APPLICATION_STATUS,
+      type: NotificationType.JOB_APPLICATION,
       priority: statusData.priority,
       link: `/applications/${jobId}`,
       sendEmail: status === 'accepted' || status === 'rejected',
@@ -196,7 +197,7 @@ export class NotificationHelpers {
     return {
       title: `Security Alert: ${alertType}`,
       content,
-      type: NotificationType.SECURITY_ALERT,
+      type: NotificationType.ALERT,
       priority: NotificationPriority.URGENT,
       link: '/settings/security',
       sendEmail: true,
@@ -215,7 +216,7 @@ export class NotificationHelpers {
     return {
       title: `📢 ${title}`,
       content,
-      type: NotificationType.ADMIN_ANNOUNCEMENT,
+      type: NotificationType.SYSTEM,
       priority: NotificationPriority.HIGH,
       link: link || '/announcements',
       sendEmail: true,
@@ -234,7 +235,7 @@ export class NotificationHelpers {
     return {
       title: `🎯 ${title}`,
       content,
-      type: NotificationType.PROMOTION,
+      type: NotificationType.JOB_APPLICATION,
       priority: NotificationPriority.LOW,
       link: link || '/promotions',
       sendEmail: false,
@@ -268,17 +269,13 @@ export class NotificationHelpers {
     const icons: Record<NotificationType, string> = {
       [NotificationType.SYSTEM]: '⚙️',
       [NotificationType.MESSAGE]: '💬',
-      [NotificationType.JOB_ALERT]: '💼',
-      [NotificationType.EVENT_REMINDER]: '📅',
-      [NotificationType.CONNECTION_REQUEST]: '🤝',
-      [NotificationType.PROFILE_UPDATE]: '👤',
-      [NotificationType.SECURITY_ALERT]: '🔒',
-      [NotificationType.ADMIN_ANNOUNCEMENT]: '📢',
-      [NotificationType.CHAT_MESSAGE]: '💭',
-      [NotificationType.DOCUMENT_VERIFICATION]: '📋',
-      [NotificationType.APPLICATION_STATUS]: '📄',
+      [NotificationType.JOB_APPLICATION]: '💼',
+      [NotificationType.EVENT_REGISTRATION]: '📅',
+      [NotificationType.GENERAL]: '📢',
+      [NotificationType.REMINDER]: '🔔',
+      [NotificationType.ALERT]: '🚨',
       [NotificationType.WELCOME]: '🎉',
-      [NotificationType.PROMOTION]: '🎯',
+      [NotificationType.COMPANY_VERIFICATION]: '📋',
     };
 
     return icons[type] || '📢';

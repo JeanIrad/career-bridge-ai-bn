@@ -6,9 +6,13 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MailService } from '../mail/mail.service';
-import { ApplicationStatus, InterviewStatus } from '@prisma/client';
 import {
+  ApplicationStatus,
+  InterviewStatus,
   NotificationType,
+} from '@prisma/client';
+import {
+  // NotificationType,
   NotificationPriority,
 } from '../notifications/dto/notification.dto';
 
@@ -194,7 +198,7 @@ export class ApplicationsService {
     // Send notification
     await this.notificationsService.createNotification({
       userId,
-      type: NotificationType.APPLICATION_STATUS,
+      type: NotificationType.JOB_APPLICATION,
       title: 'Application Withdrawn',
       content: `You have withdrawn your application for ${application.job.title} at ${application.job.company.name}`,
       priority: NotificationPriority.MEDIUM,
@@ -451,7 +455,7 @@ export class ApplicationsService {
 
     await this.notificationsService.createNotification({
       userId,
-      type: NotificationType.APPLICATION_STATUS,
+      type: NotificationType.JOB_APPLICATION,
       title: notificationTitle,
       content: notificationContent,
       priority: NotificationPriority.HIGH,

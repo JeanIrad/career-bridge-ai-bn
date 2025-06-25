@@ -14,11 +14,11 @@ import {
   BulkNotificationDto,
   UpdateNotificationDto,
   NotificationQueryDto,
-  NotificationType,
+  // NotificationType,
   NotificationPriority,
   NotificationPreferencesDto,
 } from './dto/notification.dto';
-import { Notification, User, UserRole } from '@prisma/client';
+import { Notification, User, UserRole, NotificationType } from '@prisma/client';
 
 export interface NotificationResponse extends Notification {
   user?: Partial<User>;
@@ -501,7 +501,7 @@ export class NotificationsService {
     return this.createNotification({
       title: `New Job Alert: ${jobTitle}`,
       content: `A new position at ${companyName} matches your profile. Check it out!`,
-      type: NotificationType.JOB_ALERT,
+      type: NotificationType.JOB_APPLICATION,
       userId,
       link: `/jobs/${jobId}`,
       priority: NotificationPriority.MEDIUM,

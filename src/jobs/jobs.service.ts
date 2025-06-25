@@ -14,6 +14,7 @@ import {
   InterviewType,
   InterviewStatus,
   JobStatus,
+  NotificationType,
 } from '@prisma/client';
 import {
   CreateJobDto,
@@ -24,7 +25,7 @@ import {
 import { MailService } from '../mail/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
-  NotificationType,
+  // NotificationType,
   NotificationPriority,
 } from '../notifications/dto/notification.dto';
 
@@ -998,7 +999,7 @@ export class JobsService {
       userId: application.userId,
       title: "🎉 You've been shortlisted!",
       content: `Great news! You've been shortlisted for the ${application.job.title} position at ${application.job.company.name}.`,
-      type: NotificationType.JOB_ALERT,
+      type: NotificationType.JOB_APPLICATION,
       priority: NotificationPriority.HIGH,
       link: `/student/applications/${application.id}`,
       sendEmail: true,
@@ -1030,7 +1031,7 @@ export class JobsService {
       userId: application.userId,
       title: 'Application Update',
       content: `Thank you for your interest in the ${application.job.title} position at ${application.job.company.name}. We've decided to move forward with other candidates. We encourage you to apply for future opportunities.`,
-      type: NotificationType.JOB_ALERT,
+      type: NotificationType.JOB_APPLICATION,
       priority: NotificationPriority.MEDIUM,
       link: `/student/applications/${application.id}`,
       sendEmail: true,
@@ -1121,7 +1122,7 @@ export class JobsService {
       userId: application.userId,
       title: '📅 Interview Scheduled!',
       content: `Your interview for the ${application.job.title} position at ${application.job.company.name} has been scheduled for ${interviewData.scheduledDate} at ${interviewData.scheduledTime}.`,
-      type: NotificationType.EVENT_REMINDER,
+      type: NotificationType.JOB_APPLICATION,
       priority: NotificationPriority.HIGH,
       link: `/student/interviews/${interview.id}`,
       sendEmail: true,

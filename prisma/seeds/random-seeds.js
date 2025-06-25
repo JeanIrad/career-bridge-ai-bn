@@ -1,6 +1,9 @@
-const { PrismaClient } = require('@prisma/client');
-const { faker } = require('@faker-js/faker');
-const bcrypt = require('bcrypt');
+// const { PrismaClient } = require('@prisma/client');
+// const { faker } = require('@faker-js/faker');
+// const bcrypt = require('bcrypt');
+import { PrismaClient } from '@prisma/client';
+import { faker } from '@faker-js/faker';
+import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
@@ -815,6 +818,6 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-module.exports = {
-  main,
-};
+// module.exports = {
+//   main,
+// };
