@@ -539,14 +539,197 @@ export class MailService {
     auth: boolean;
   }> {
     return {
-      configured: await this.verifyEmailConfiguration(),
-      host: this.configService.get<string>('SMTP_HOST', 'not configured'),
-      port: this.configService.get<number>('SMTP_PORT', 587),
-      secure: this.configService.get<boolean>('SMTP_SECURE', false),
-      auth: !!(
-        this.configService.get<string>('SMTP_USER') &&
-        this.configService.get<string>('SMTP_PASS')
-      ),
+      configured: !!this.configService.get('SMTP_HOST'),
+      host: this.configService.get('SMTP_HOST', 'localhost'),
+      port: this.configService.get('SMTP_PORT', 465),
+      secure: this.configService.get('SMTP_SECURE', true),
+      auth: !!this.configService.get('SMTP_USER'),
     };
+  }
+
+  // ============= EVENT NOTIFICATIONS =============
+
+  async sendEventRegistrationConfirmation(
+    email: string,
+    firstName: string,
+    eventTitle: string,
+    eventDate: Date,
+    eventLocation: string,
+    isWaitlisted: boolean = false,
+  ): Promise<boolean> {
+    const context = {
+      firstName,
+      eventTitle,
+      eventDate: eventDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      eventLocation,
+      isWaitlisted,
+      status: isWaitlisted ? 'waitlisted' : 'confirmed',
+      baseUrl: this.configService.get<string>(
+        'FRONTEND_URL',
+        'http://localhost:3000',
+      ),
+      currentYear: new Date().getFullYear(),
+    };
+
+    return this.sendEmail({
+      to: email,
+      subject: isWaitlisted
+        ? `You're on the waitlist for ${eventTitle}`
+        : `Registration confirmed for ${eventTitle}`,
+      template: 'event-registration-confirmation',
+      context,
+    });
+  }
+
+  async sendEventReminder(
+    email: string,
+    firstName: string,
+    eventTitle: string,
+    eventDate: Date,
+    eventLocation: string,
+    meetingLink?: string,
+  ): Promise<boolean> {
+    const context = {
+      firstName,
+      eventTitle,
+      eventDate: eventDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      eventLocation,
+      meetingLink,
+      hasVirtualComponent: !!meetingLink,
+      baseUrl: this.configService.get<string>(
+        'FRONTEND_URL',
+        'http://localhost:3000',
+      ),
+      currentYear: new Date().getFullYear(),
+    };
+
+    return this.sendEmail({
+      to: email,
+      subject: `Reminder: ${eventTitle} is starting soon`,
+      template: 'event-reminder',
+      context,
+    });
+  }
+
+  async sendEventCancellation(
+    email: string,
+    firstName: string,
+    eventTitle: string,
+    reason?: string,
+  ): Promise<boolean> {
+    const context = {
+      firstName,
+      eventTitle,
+      reason,
+      hasReason: !!reason,
+      baseUrl: this.configService.get<string>(
+        'FRONTEND_URL',
+        'http://localhost:3000',
+      ),
+      currentYear: new Date().getFullYear(),
+    };
+
+    return this.sendEmail({
+      to: email,
+      subject: `Event Cancelled: ${eventTitle}`,
+      template: 'event-cancellation',
+      context,
+    });
+  }
+
+  async sendEventUpdate(
+    email: string,
+    firstName: string,
+    eventTitle: string,
+    updateType: string,
+    updateDetails: string,
+  ): Promise<boolean> {
+    const context = {
+      firstName,
+      eventTitle,
+      updateType,
+      updateDetails,
+      baseUrl: this.configService.get<string>(
+        'FRONTEND_URL',
+        'http://localhost:3000',
+      ),
+      currentYear: new Date().getFullYear(),
+    };
+
+    return this.sendEmail({
+      to: email,
+      subject: `Update: ${eventTitle}`,
+      template: 'event-update',
+      context,
+    });
+  }
+
+  async sendEventFeedbackRequest(
+    email: string,
+    firstName: string,
+    eventTitle: string,
+    eventId: string,
+  ): Promise<boolean> {
+    const context = {
+      firstName,
+      eventTitle,
+      eventId,
+      feedbackUrl: `${this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000')}/events/${eventId}/feedback`,
+      baseUrl: this.configService.get<string>(
+        'FRONTEND_URL',
+        'http://localhost:3000',
+      ),
+      currentYear: new Date().getFullYear(),
+    };
+
+    return this.sendEmail({
+      to: email,
+      subject: `Share your feedback: ${eventTitle}`,
+      template: 'event-feedback-request',
+      context,
+    });
+  }
+
+  async sendEventNetworkingMatch(
+    email: string,
+    firstName: string,
+    eventTitle: string,
+    matchName: string,
+    matchProfile: string,
+    commonInterests: string[],
+  ): Promise<boolean> {
+    const context = {
+      firstName,
+      eventTitle,
+      matchName,
+      matchProfile,
+      commonInterests,
+      baseUrl: this.configService.get<string>(
+        'FRONTEND_URL',
+        'http://localhost:3000',
+      ),
+      currentYear: new Date().getFullYear(),
+    };
+
+    return this.sendEmail({
+      to: email,
+      subject: `New networking match at ${eventTitle}`,
+      template: 'event-networking-match',
+      context,
+    });
   }
 }

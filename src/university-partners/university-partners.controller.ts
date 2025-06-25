@@ -28,6 +28,19 @@ export class UniversityPartnersController {
     private readonly universityPartnersService: UniversityPartnersService,
   ) {}
 
+  // Public endpoint for students to search universities
+  @Get('public/universities')
+  @UseGuards(JwtAuthGuard) // Only require authentication, not specific role
+  @Roles() // Override the controller-level role requirement
+  async getPublicUniversities(@Query() query: any) {
+    return this.universityPartnersService.searchUniversities({
+      search: query.search,
+      country: query.country,
+      page: query.page ? parseInt(query.page) : 1,
+      limit: query.limit ? parseInt(query.limit) : 50,
+    });
+  }
+
   @Get('universities')
   async getUniversities(@Query() query: any) {
     const search = query.search;

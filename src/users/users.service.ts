@@ -25,6 +25,11 @@ import {
   CreateUserByAdminDto,
   UserStatsDto,
 } from './dto/user.dto';
+import {
+  CreateStudentEducationDto,
+  UpdateStudentEducationDto,
+  EducationStatus,
+} from './dto/student-education.dto';
 import { User, UserRole, AccountStatus, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { ExportUtils } from '../utils/export-utils';
@@ -49,6 +54,11 @@ export class UsersService {
   private getFullUserInclude() {
     return {
       education: true,
+      studentEducations: {
+        include: {
+          university: true,
+        },
+      },
       experiences: {
         include: {
           company: {
@@ -214,6 +224,12 @@ export class UsersService {
         socialLinks: updateData.socialLinks,
         visibility: updateData.visibility,
         isPublic: updateData.isPublic,
+        major: updateData.major,
+        graduationYear: updateData.graduationYear,
+        gpa: updateData.gpa,
+        studentId: updateData.studentId,
+        resume: updateData.resume,
+        avatar: updateData.avatar,
       },
       include: this.getFullUserInclude(),
     });
@@ -269,6 +285,66 @@ export class UsersService {
     });
 
     return { message: 'Password changed successfully' };
+  }
+
+  async getUniversitiesForProfile(params: {
+    search?: string;
+    country?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const { search, country, page = 1, limit = 50 } = params;
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      isActive: true,
+      ...(country && { country }),
+    };
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { shortName: { contains: search, mode: 'insensitive' } },
+        { city: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [universities, total] = await Promise.all([
+      this.prisma.university.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: [
+          { isTopTier: 'desc' },
+          { worldRanking: 'asc' },
+          { name: 'asc' },
+        ],
+        select: {
+          id: true,
+          name: true,
+          shortName: true,
+          logo: true,
+          city: true,
+          state: true,
+          country: true,
+          type: true,
+          worldRanking: true,
+          isTopTier: true,
+          popularMajors: true,
+        },
+      }),
+      this.prisma.university.count({ where }),
+    ]);
+
+    return {
+      universities,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    };
   }
 
   // ============= EDUCATION MANAGEMENT =============
@@ -430,6 +506,101 @@ export class UsersService {
           increment: 1,
         },
       },
+    });
+  }
+
+  // ============= STUDENT EDUCATION MANAGEMENT =============
+
+  async addStudentEducation(
+    userId: string,
+    educationData: CreateStudentEducationDto,
+  ) {
+    // Check if relationship already exists
+    const existing = await this.prisma.studentEducation.findFirst({
+      where: {
+        userId,
+        universityId: educationData.universityId,
+      },
+    });
+
+    if (existing) {
+      throw new ConflictException(
+        'Education record for this university already exists',
+      );
+    }
+
+    return this.prisma.studentEducation.create({
+      data: {
+        ...educationData,
+        userId,
+      },
+      include: {
+        university: true,
+      },
+    });
+  }
+
+  async updateStudentEducation(
+    userId: string,
+    educationId: string,
+    updateData: UpdateStudentEducationDto,
+  ) {
+    const education = await this.prisma.studentEducation.findFirst({
+      where: {
+        id: educationId,
+        userId,
+      },
+    });
+
+    if (!education) {
+      throw new NotFoundException('Student education record not found');
+    }
+
+    return this.prisma.studentEducation.update({
+      where: { id: educationId },
+      data: updateData,
+      include: {
+        university: true,
+      },
+    });
+  }
+
+  async deleteStudentEducation(userId: string, educationId: string) {
+    const education = await this.prisma.studentEducation.findFirst({
+      where: {
+        id: educationId,
+        userId,
+      },
+    });
+
+    if (!education) {
+      throw new NotFoundException('Student education record not found');
+    }
+
+    return this.prisma.studentEducation.delete({
+      where: { id: educationId },
+    });
+  }
+
+  async getStudentEducations(userId: string) {
+    return this.prisma.studentEducation.findMany({
+      where: { userId },
+      include: {
+        university: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
+  // ============= CV MANAGEMENT =============
+
+  async uploadCV(userId: string, cvUrl: string): Promise<User> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { cvUrl },
+      include: this.getFullUserInclude(),
     });
   }
 

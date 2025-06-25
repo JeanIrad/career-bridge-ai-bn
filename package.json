@@ -50,6 +50,8 @@
     "classnames": "^2.5.1",
     "cloudinary": "^2.7.0",
     "country-list": "^2.3.0",
+    "date-fn": "^0.0.2",
+    "date-fns": "^4.1.0",
     "exceljs": "^4.4.0",
     "express-handlebars": "^8.0.3",
     "jspdf": "^3.0.1",

@@ -625,7 +625,7 @@ export class KpiService {
   ) {
     const current = await this.prisma.eventRegistration.count({
       where: {
-        User: { some: { id: userId } },
+        userId: userId,
         createdAt: { gte: startDate, lte: endDate },
         deletedAt: null,
       },

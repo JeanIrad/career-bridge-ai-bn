@@ -378,16 +378,16 @@ async function main() {
   }
 
   // 12. Create Messages (10)
-  console.log('Creating messages...');
-  for (let i = 0; i < 10; i++) {
-    await prisma.message.create({
-      data: {
-        content: faker.lorem.sentence(),
-        chatId: getRandomArrayElement(chats).id,
-        senderId: getRandomArrayElement(users).id,
-      },
-    });
-  }
+  // console.log('Creating messages...');
+  // for (let i = 0; i < 10; i++) {
+  //   await prisma.message.create({
+  //     data: {
+  //       content: faker.lorem.sentence(),
+  //       chatId: getRandomArrayElement(chats).id,
+  //       senderId: getRandomArrayElement(users).id,
+  //     },
+  //   });
+  // }
 
   // 13. Create Chat Groups (10)
   console.log('Creating chat groups...');

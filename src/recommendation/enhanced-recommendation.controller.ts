@@ -16,35 +16,13 @@ import {
 } from '@nestjs/swagger';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
-
-class EnhancedFiltersDto {
-  location?: string;
-  jobType?: string[];
-  experience?: string[];
-  salary?: { min?: number; max?: number };
-  skills?: string[];
-  company?: string[];
-  industry?: string[];
-  remoteOnly?: boolean;
-  deadline?: Date;
-  companySize?: string[];
-  benefits?: string[];
-  workSchedule?: string[];
-}
-
-class UserPreferencesDto {
-  careerGoals?: string[];
-  workEnvironment?: 'remote' | 'onsite' | 'hybrid' | 'any';
-  companyCulture?: string[];
-  learningOpportunities?: boolean;
-  workLifeBalance?: number; // 1-10 scale
-  salaryImportance?: number; // 1-10 scale
-  growthPotential?: number; // 1-10 scale
-  industryPreferences?: string[];
-  roleTypes?: string[];
-  avoidCompanies?: string[];
-  preferredBenefits?: string[];
-}
+import {
+  EnhancedFiltersDto,
+  UserPreferencesDto,
+  RecommendationQueryDto,
+  MarketIntelligenceQueryDto,
+  CombinedRecommendationQueryDto,
+} from './dto/recommendation.dto';
 
 @ApiTags('Enhanced AI Recommendations')
 @ApiBearerAuth()
@@ -61,16 +39,6 @@ export class EnhancedRecommendationController {
     description:
       'Retrieve sophisticated job recommendations with detailed insights and analytics',
   })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    description: 'Number of recommendations to return (default: 20)',
-  })
-  @ApiQuery({
-    name: 'includeAnalytics',
-    required: false,
-    description: 'Include recommendation insights (default: true)',
-  })
   @ApiResponse({
     status: 200,
     description: 'Successfully retrieved enhanced recommendations',
@@ -78,25 +46,61 @@ export class EnhancedRecommendationController {
   @ApiResponse({ status: 401, description: 'Unauthorized access' })
   async getAdvancedRecommendations(
     @CurrentUser() user: any,
-    @Query('limit') limit?: string,
-    @Query('includeAnalytics') includeAnalytics?: string,
-    @Query() filters?: EnhancedFiltersDto,
-    @Query() preferences?: UserPreferencesDto,
+    @Query() queryDto: CombinedRecommendationQueryDto,
   ) {
     try {
-      const limitNum = limit ? parseInt(limit, 10) : 20;
-      const analytics = includeAnalytics !== 'false';
+      const { limit = 20, includeAnalytics = true, ...rest } = queryDto;
+
+      // Separate filters and preferences from the combined DTO
+      const filters = {
+        location: rest.location,
+        jobType: rest.jobType,
+        experience: rest.experience,
+        salary: rest.salary,
+        skills: rest.skills,
+        company: rest.company,
+        industry: rest.industry,
+        remoteOnly: rest.remoteOnly,
+        deadline: rest.deadline,
+        companySize: rest.companySize,
+        benefits: rest.benefits,
+        workSchedule: rest.workSchedule,
+      };
+
+      const preferences = {
+        careerGoals: rest.careerGoals,
+        workEnvironment: rest.workEnvironment,
+        companyCulture: rest.companyCulture,
+        learningOpportunities: rest.learningOpportunities,
+        workLifeBalance: rest.workLifeBalance,
+        salaryImportance: rest.salaryImportance,
+        growthPotential: rest.growthPotential,
+        industryPreferences: rest.industryPreferences,
+        roleTypes: rest.roleTypes,
+        avoidCompanies: rest.avoidCompanies,
+        preferredBenefits: rest.preferredBenefits,
+      };
+
+      // Filter out undefined values from filters and preferences
+      const cleanFilters = Object.fromEntries(
+        Object.entries(filters).filter(([_, value]) => value !== undefined),
+      );
+
+      const cleanPreferences = Object.fromEntries(
+        Object.entries(preferences).filter(([_, value]) => value !== undefined),
+      );
 
       return await this.enhancedRecommendationService.generateAdvancedRecommendations(
         user.id,
-        limitNum,
-        filters,
-        preferences,
-        analytics,
+        limit,
+        cleanFilters,
+        cleanPreferences,
+        includeAnalytics,
       );
     } catch (error) {
+      console.error('Error in getAdvancedRecommendations:', error);
       throw new HttpException(
-        'Failed to retrieve advanced recommendations',
+        error.message || 'Failed to retrieve advanced recommendations',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -118,8 +122,9 @@ export class EnhancedRecommendationController {
         user.id,
       );
     } catch (error) {
+      console.error('Error in getLearningRecommendations:', error);
       throw new HttpException(
-        'Failed to retrieve learning recommendations',
+        error.message || 'Failed to retrieve learning recommendations',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -140,8 +145,9 @@ export class EnhancedRecommendationController {
         user.id,
       );
     } catch (error) {
+      console.error('Error in getCareerPathAnalysis:', error);
       throw new HttpException(
-        'Failed to retrieve career path analysis',
+        error.message || 'Failed to retrieve career path analysis',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -152,31 +158,13 @@ export class EnhancedRecommendationController {
     summary: 'Get market intelligence',
     description: 'Retrieve market demand, salary trends, and industry insights',
   })
-  @ApiQuery({
-    name: 'skills',
-    required: false,
-    description: 'Comma-separated list of skills to analyze',
-  })
-  @ApiQuery({
-    name: 'location',
-    required: false,
-    description: 'Location for market analysis',
-  })
-  @ApiQuery({
-    name: 'industry',
-    required: false,
-    description: 'Industry for market analysis',
-  })
   @ApiResponse({
     status: 200,
     description: 'Successfully retrieved market intelligence',
   })
-  async getMarketIntelligence(
-    @Query('skills') skills?: string,
-    @Query('location') location?: string,
-    @Query('industry') industry?: string,
-  ) {
+  async getMarketIntelligence(@Query() queryDto: MarketIntelligenceQueryDto) {
     try {
+      const { skills, location, industry } = queryDto;
       const skillsArray = skills
         ? skills.split(',').map((s) => s.trim())
         : undefined;
@@ -187,8 +175,9 @@ export class EnhancedRecommendationController {
         industry,
       );
     } catch (error) {
+      console.error('Error in getMarketIntelligence:', error);
       throw new HttpException(
-        'Failed to retrieve market intelligence',
+        error.message || 'Failed to retrieve market intelligence',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -214,8 +203,8 @@ export class EnhancedRecommendationController {
         this.enhancedRecommendationService.generateAdvancedRecommendations(
           user.id,
           10,
-          undefined,
-          undefined,
+          {},
+          {},
           true,
         ),
         this.enhancedRecommendationService.getLearningRecommendations(user.id),
@@ -231,8 +220,9 @@ export class EnhancedRecommendationController {
         generatedAt: new Date(),
       };
     } catch (error) {
+      console.error('Error in getCareerDashboard:', error);
       throw new HttpException(
-        'Failed to retrieve career dashboard',
+        error.message || 'Failed to retrieve career dashboard',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

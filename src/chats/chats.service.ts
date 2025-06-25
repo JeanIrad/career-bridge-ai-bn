@@ -100,21 +100,22 @@ export class ChatsService {
         type: 'group',
       };
     } else if (recipientId) {
-      // For direct messages, we need to create or find a chat first
+      // For direct messages, find or create a chat between two users
       let chat = await this.prisma.chat.findFirst({
         where: {
-          participants: {
-            hasEvery: [senderId, recipientId],
-          },
+          OR: [
+            { user1Id: senderId, user2Id: recipientId },
+            { user1Id: recipientId, user2Id: senderId },
+          ],
         },
       });
 
       if (!chat) {
         chat = await this.prisma.chat.create({
           data: {
+            user1Id: senderId,
+            user2Id: recipientId,
             type: 'direct',
-            participants: [senderId, recipientId],
-            userId: senderId,
           },
         });
       }
@@ -164,12 +165,10 @@ export class ChatsService {
     });
     if (!user) throw new NotFoundException('User not found');
 
-    // Get messages from chats where user is a participant
+    // Get messages from chats where user is either user1 or user2
     const chats = await this.prisma.chat.findMany({
       where: {
-        participants: {
-          has: userId,
-        },
+        OR: [{ user1Id: userId }, { user2Id: userId }],
       },
     });
 
@@ -524,31 +523,21 @@ export class ChatsService {
     // Find the chat between these two users
     const chat = await this.prisma.chat.findFirst({
       where: {
-        participants: {
-          hasEvery: [userId, targetUserId],
-        },
-        type: 'direct',
+        OR: [
+          { user1Id: userId, user2Id: targetUserId },
+          { user1Id: targetUserId, user2Id: userId },
+        ],
       },
     });
 
     if (!chat) {
-      return []; // No conversation yet
+      return { messages: [], hasMore: false };
     }
 
-    // Get the target user info for recipient data
-    const targetUser = await this.prisma.user.findUnique({
-      where: { id: targetUserId },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        avatar: true,
-        email: true,
-      },
-    });
-
     const messages = await this.prisma.message.findMany({
-      where: { chatId: chat.id },
+      where: {
+        chatId: chat.id,
+      },
       include: {
         sender: {
           select: {
@@ -556,7 +545,6 @@ export class ChatsService {
             firstName: true,
             lastName: true,
             avatar: true,
-            email: true,
           },
         },
         recipient: {
@@ -565,7 +553,6 @@ export class ChatsService {
             firstName: true,
             lastName: true,
             avatar: true,
-            email: true,
           },
         },
       },
@@ -574,17 +561,18 @@ export class ChatsService {
       skip: offset,
     });
 
-    // Add consistent recipient information to each message
-    return messages.map((message) => ({
-      ...message,
-      recipients: message.recipient
-        ? [message.recipient]
-        : targetUser
-          ? [targetUser]
-          : [],
-      recipientCount: 1,
-      type: 'direct',
-    }));
+    const hasMore = messages.length === limit;
+
+    // Return message with recipient information
+    return {
+      messages: messages.map((message) => ({
+        ...message,
+        recipients: message.recipient ? [message.recipient] : [],
+        recipientCount: message.recipient ? 1 : 0,
+        type: 'direct',
+      })),
+      hasMore,
+    };
   }
 
   async markMessagesAsRead(userId: string, messageIds: string[]) {

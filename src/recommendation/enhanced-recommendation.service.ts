@@ -515,7 +515,7 @@ export class EnhancedRecommendationService {
       applicationDeadline: {
         gte: new Date(),
       },
-      jobApplications: {
+      applications: {
         none: { userId },
       },
     };

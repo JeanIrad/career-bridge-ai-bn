@@ -73,9 +73,13 @@ export class NotificationsService {
     // Create notification in database
     const notification = await this.prisma.notification.create({
       data: {
-        ...notificationData,
+        title: notificationData.title,
+        content: notificationData.content,
+        type: notificationData.type,
+        priority: notificationData.priority || 'MEDIUM',
+        link: notificationData.link,
         userId,
-      },
+      } as any,
       include: {
         user: {
           select: {
@@ -136,9 +140,13 @@ export class NotificationsService {
       userIds.map((userId) =>
         this.prisma.notification.create({
           data: {
-            ...notificationData,
+            title: notificationData.title,
+            content: notificationData.content,
+            type: notificationData.type,
+            priority: notificationData.priority || 'MEDIUM',
+            link: notificationData.link,
             userId,
-          },
+          } as any,
           include: {
             user: {
               select: {
@@ -189,7 +197,7 @@ export class NotificationsService {
     const { page = 1, limit = 20, type, read } = query;
     const skip = (page - 1) * limit;
 
-    const where = {
+    const where: any = {
       userId,
       deletedAt: null,
       ...(type && { type }),

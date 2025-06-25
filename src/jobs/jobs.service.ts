@@ -34,7 +34,11 @@ export class JobsService {
     private prisma: PrismaService,
     private mailService: MailService,
     private notificationsService: NotificationsService,
-  ) {}
+  ) {
+    // this.getUserJobStats('b4d97c5e-9841-4ecf-b454-049df5cc0652').then((res) => {
+    //   console.log('Saved Jobs========>', res);
+    // });
+  }
 
   // ============= EMPLOYER OPERATIONS =============
 
@@ -382,28 +386,39 @@ export class JobsService {
               applications: true,
             },
           },
-          applications: userId
-            ? {
-                where: { userId },
-                select: { id: true, status: true },
-              }
-            : false,
+          ...(userId && {
+            applications: {
+              where: { userId },
+              select: { id: true, status: true },
+            },
+            savedByUsers: {
+              where: { userId },
+              select: { id: true },
+            },
+          }),
         },
       }),
       this.prisma.job.count({ where }),
     ]);
 
-    // Add application status for current user
-    const jobsWithApplicationStatus = jobs.map((job) => ({
-      ...job,
-      hasApplied: userId
-        ? job.applications && job.applications.length > 0
-        : false,
-      applicationStatus:
-        userId && job.applications && job.applications.length > 0
-          ? job.applications[0].status
-          : null,
-    }));
+    // Add application and saved status for current user
+    const jobsWithApplicationStatus = jobs.map((job) => {
+      const jobAny = job as any;
+
+      return {
+        ...job,
+        hasApplied: userId
+          ? jobAny.applications && jobAny.applications.length > 0
+          : false,
+        applicationStatus:
+          userId && jobAny.applications && jobAny.applications.length > 0
+            ? jobAny.applications[0].status
+            : null,
+        isSaved: userId
+          ? jobAny.savedByUsers && jobAny.savedByUsers.length > 0
+          : false,
+      };
+    });
 
     return {
       data: jobsWithApplicationStatus,
@@ -1274,5 +1289,248 @@ export class JobsService {
         replyEmail: employer.email,
       },
     );
+  }
+
+  // ============= STUDENT/ALUMNI OPERATIONS =============
+
+  async saveJob(jobId: string, userId: string | any) {
+    // Handle case where userId might be a user object instead of string
+    const actualUserId = typeof userId === 'string' ? userId : userId?.id;
+
+    // Check if job exists
+    const job = await this.prisma.job.findUnique({
+      where: { id: jobId },
+    });
+
+    if (!job) {
+      throw new NotFoundException('Job not found');
+    }
+
+    // Check if already saved
+    const existingSave = await this.prisma.savedJob.findUnique({
+      where: {
+        userId_jobId: {
+          userId: actualUserId,
+          jobId,
+        },
+      },
+    });
+
+    if (existingSave) {
+      throw new BadRequestException('Job is already saved');
+    }
+
+    // Save the job
+    const savedJob = await this.prisma.savedJob.create({
+      data: {
+        userId: actualUserId,
+        jobId,
+      },
+      include: {
+        job: {
+          include: {
+            company: {
+              select: {
+                id: true,
+                name: true,
+                logo: true,
+                industry: true,
+                size: true,
+              },
+            },
+            _count: {
+              select: {
+                applications: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Send notification
+    await this.notificationsService.createNotification({
+      userId: actualUserId,
+      type: NotificationType.SYSTEM,
+      title: 'Job Saved',
+      content: `You saved the job: ${job.title}`,
+      priority: NotificationPriority.LOW,
+    });
+
+    return savedJob;
+  }
+
+  async unsaveJob(jobId: string, userId: string | any) {
+    // Handle case where userId might be a user object instead of string
+    const actualUserId = typeof userId === 'string' ? userId : userId?.id;
+
+    // Check if the save exists
+    const savedJob = await this.prisma.savedJob.findUnique({
+      where: {
+        userId_jobId: {
+          userId: actualUserId,
+          jobId,
+        },
+      },
+    });
+
+    if (!savedJob) {
+      throw new NotFoundException('Saved job not found');
+    }
+
+    // Remove the save
+    await this.prisma.savedJob.delete({
+      where: {
+        userId_jobId: {
+          userId: actualUserId,
+          jobId,
+        },
+      },
+    });
+
+    return { message: 'Job unsaved successfully' };
+  }
+
+  async getSavedJobs(userId: string | any) {
+    // Handle case where userId might be a user object instead of string
+    const actualUserId = typeof userId === 'string' ? userId : userId?.id;
+
+    const savedJobs = await this.prisma.savedJob.findMany({
+      where: { userId: actualUserId },
+      include: {
+        job: {
+          include: {
+            company: {
+              select: {
+                id: true,
+                name: true,
+                logo: true,
+                industry: true,
+                size: true,
+              },
+            },
+            _count: {
+              select: {
+                applications: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    console.log('Saved Jobs========>', savedJobs);
+    return savedJobs.map((savedJob) => ({
+      ...savedJob.job,
+      savedAt: savedJob.createdAt,
+      saved: true,
+    }));
+  }
+
+  async getUserJobStats(userId: string | any) {
+    // Handle case where userId might be a user object instead of string
+    const actualUserId = typeof userId === 'string' ? userId : userId?.id;
+
+    const [applications, savedJobs, interviews] = await Promise.all([
+      // Get user applications
+      this.prisma.jobApplication.findMany({
+        where: { userId: actualUserId },
+        include: {
+          job: {
+            select: {
+              title: true,
+              company: {
+                select: { name: true },
+              },
+            },
+          },
+        },
+      }),
+      // Get saved jobs count
+      this.prisma.savedJob.count({
+        where: { userId: actualUserId },
+      }),
+      // Get interviews
+      this.prisma.interview.findMany({
+        where: {
+          application: {
+            userId: actualUserId,
+          },
+        },
+        include: {
+          application: {
+            include: {
+              job: {
+                select: {
+                  title: true,
+                  company: {
+                    select: { name: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+      }),
+    ]);
+
+    const totalApplications = applications.length;
+    const pendingApplications = applications.filter(
+      (app) => app.status === ApplicationStatus.PENDING,
+    ).length;
+    const acceptedApplications = applications.filter(
+      (app) => app.status === ApplicationStatus.SHORTLISTED,
+    ).length;
+    const rejectedApplications = applications.filter(
+      (app) => app.status === ApplicationStatus.REJECTED,
+    ).length;
+
+    const responseRate =
+      totalApplications > 0
+        ? Math.round(
+            ((acceptedApplications + rejectedApplications) /
+              totalApplications) *
+              100,
+          )
+        : 0;
+
+    const interviewInvites = interviews.filter(
+      (interview) => interview.status !== InterviewStatus.CANCELLED,
+    ).length;
+
+    // Get application trends for the last 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const recentApplications = applications.filter(
+      (app) => new Date(app.createdAt) >= thirtyDaysAgo,
+    );
+
+    return {
+      totalJobs: await this.prisma.job.count({
+        where: { status: JobStatus.ACTIVE },
+      }),
+      newJobs: await this.prisma.job.count({
+        where: {
+          status: JobStatus.ACTIVE,
+          createdAt: {
+            gte: thirtyDaysAgo,
+          },
+        },
+      }),
+      applicationsSent: totalApplications,
+      savedJobs,
+      interviewInvites,
+      responseRate,
+      applicationBreakdown: {
+        pending: pendingApplications,
+        accepted: acceptedApplications,
+        rejected: rejectedApplications,
+      },
+      recentActivity: {
+        applications: recentApplications.length,
+        period: '30 days',
+      },
+    };
   }
 }

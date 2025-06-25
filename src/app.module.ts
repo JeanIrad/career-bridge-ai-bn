@@ -18,6 +18,10 @@ import { ContentModerationModule } from './content-moderation/content-moderation
 import { JobsModule } from './jobs/jobs.module';
 import { CompaniesModule } from './companies/companies.module';
 import { UniversityPartnersModule } from './university-partners/university-partners.module';
+import { ApplicationsModule } from './applications/applications.module';
+import { EventsModule } from './events/events.module';
+import { MentorshipModule } from './mentorship/mentorship.module';
+import { InternshipsModule } from './internships/internships.module';
 
 @Module({
   imports: [
@@ -39,6 +43,10 @@ import { UniversityPartnersModule } from './university-partners/university-partn
     JobsModule, // Job posting and application management
     CompaniesModule,
     UniversityPartnersModule, // Company profile and document management
+    ApplicationsModule, // Comprehensive application management
+    EventsModule, // Comprehensive career events system
+    MentorshipModule, // Comprehensive mentorship system
+    InternshipsModule, // Comprehensive internship system
   ],
   controllers: [AppController, RecommendationController],
   providers: [AppService],

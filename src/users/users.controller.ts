@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Body,
   Patch,
   Param,
@@ -62,6 +63,10 @@ import {
   ExportReportDto,
   ChangePasswordDto,
 } from './dto/user.dto';
+import {
+  CreateStudentEducationDto,
+  UpdateStudentEducationDto,
+} from './dto/student-education.dto';
 import { UserRole } from '@prisma/client';
 
 @ApiTags('users')
@@ -70,6 +75,28 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   // ============= PROFILE MANAGEMENT =============
+
+  @Get('universities')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get universities for profile selection' })
+  @ApiResponse({
+    status: 200,
+    description: 'Universities retrieved successfully',
+  })
+  async getUniversities(@Query() query: any) {
+    const result = await this.usersService.getUniversitiesForProfile({
+      search: query.search,
+      country: query.country,
+      page: query.page ? parseInt(query.page) : 1,
+      limit: query.limit ? parseInt(query.limit) : 50,
+    });
+    return {
+      success: true,
+      data: result.universities,
+      pagination: result.pagination,
+    };
+  }
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
@@ -366,6 +393,112 @@ export class UsersController {
       success: true,
       message: 'Skill endorsed successfully',
       data: skill,
+    };
+  }
+
+  // ============= STUDENT EDUCATION MANAGEMENT =============
+
+  @Post('student-education')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Add student education record' })
+  @ApiResponse({
+    status: 201,
+    description: 'Education record added successfully',
+  })
+  async addStudentEducation(
+    @CurrentUser() user: any,
+    @Body() educationData: CreateStudentEducationDto,
+  ) {
+    const education = await this.usersService.addStudentEducation(
+      user.id,
+      educationData,
+    );
+
+    return {
+      success: true,
+      message: 'Education record added successfully',
+      data: education,
+    };
+  }
+
+  @Get('student-education')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get student education records' })
+  @ApiResponse({
+    status: 200,
+    description: 'Education records retrieved successfully',
+  })
+  async getStudentEducations(@CurrentUser() user: any) {
+    const educations = await this.usersService.getStudentEducations(user.id);
+
+    return {
+      success: true,
+      data: educations,
+    };
+  }
+
+  @Put('student-education/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update student education record' })
+  @ApiResponse({
+    status: 200,
+    description: 'Education record updated successfully',
+  })
+  async updateStudentEducation(
+    @CurrentUser() user: any,
+    @Param('id') educationId: string,
+    @Body() updateData: UpdateStudentEducationDto,
+  ) {
+    const education = await this.usersService.updateStudentEducation(
+      user.id,
+      educationId,
+      updateData,
+    );
+
+    return {
+      success: true,
+      message: 'Education record updated successfully',
+      data: education,
+    };
+  }
+
+  @Delete('student-education/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete student education record' })
+  @ApiResponse({
+    status: 200,
+    description: 'Education record deleted successfully',
+  })
+  async deleteStudentEducation(
+    @CurrentUser() user: any,
+    @Param('id') educationId: string,
+  ) {
+    await this.usersService.deleteStudentEducation(user.id, educationId);
+
+    return {
+      success: true,
+      message: 'Education record deleted successfully',
+    };
+  }
+
+  // ============= CV MANAGEMENT =============
+
+  @Post('upload-cv')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Upload CV/Resume URL' })
+  @ApiResponse({ status: 200, description: 'CV uploaded successfully' })
+  async uploadCV(@CurrentUser() user: any, @Body() body: { cvUrl: string }) {
+    const updatedUser = await this.usersService.uploadCV(user.id, body.cvUrl);
+
+    return {
+      success: true,
+      message: 'CV uploaded successfully',
+      data: { cvUrl: updatedUser.cvUrl },
     };
   }
 

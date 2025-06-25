@@ -49,117 +49,169 @@ enum TwoFactorMethod {
 // Removed old enums - replaced with comprehensive ones below
 
 model User {
-  id             String           @id @default(uuid())
-  email           String           @unique
-  password        String
-  universityId    String?  @unique
-  studentId       String?  @unique  // Student ID for verification
-  isVerified      Boolean          @default(false)
-  accountStatus   AccountStatus    @default(ACTIVE)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  lastLogin       DateTime?
-  role            UserRole         @default(STUDENT)
-  firstName       String
-  lastName        String
-  phoneNumber     String? @unique
-  address         String?
-  city            String?
-  state           String?
-  zipCode         String?
-  country         String?
-  dateOfBirth     DateTime?
-  gender          Gender? @default(OTHER)
-  nationality     String?
-  languages       String[]
-  skills          Skill[]
-  interests       String[]
-  gpa             Float?           // GPA for filtering
-  graduationYear  Int?             // Graduation year for filtering
-  availability    String?          // Job availability status
-  university      String?          // University name
-  major           String?          // Major for filtering
+  id                 String              @id @default(uuid())
+  email              String              @unique
+  password           String
+  universityId       String?             @unique
+  studentId          String?             @unique // Student ID for verification
+  isVerified         Boolean             @default(false)
+  accountStatus      AccountStatus       @default(ACTIVE)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  lastLogin          DateTime?
+  role               UserRole            @default(STUDENT)
+  firstName          String
+  lastName           String
+  phoneNumber        String?             @unique
+  address            String?
+  city               String?
+  state              String?
+  zipCode            String?
+  country            String?
+  dateOfBirth        DateTime?
+  gender             Gender?             @default(OTHER)
+  nationality        String?
+  languages          String[]
+  skills             Skill[]
+  interests          String[]
+  gpa                Float? // GPA for filtering
+  graduationYear     Int? // Graduation year for filtering
+  availability       String? // Job availability status
+  university         String? // University name
+  major              String? // Major for filtering
   // profile         Profile?
-  posts           Post[]
-  events          Event[]
-  deletedAt       DateTime? 
-  jobApplications JobApplication[]
-  companies       Company[]
-  postedJobs      Job[]            @relation("PostedJobs")
-  notifications   Notification[]
+  posts              Post[]
+  events             Event[]
+  deletedAt          DateTime?
+  jobApplications    JobApplication[]
+  companies          Company[]
+  postedJobs         Job[]               @relation("PostedJobs")
+  notifications      Notification[]
   eventRegistrations EventRegistration[]
-  chats              Chat[]
-  comments          Comment[]
-  education         Education[]
-  experiences       Experience[]
-  resume            String?
-  headline          String?
-  bio               String?
-  avatar            String?
-  socialLinks       Json?
-  visibility        Visibility   @default(PUBLIC)
-  isPublic          Boolean      @default(true)
-  
+  chatsAsUser1       Chat[]              @relation("ChatUser1")
+  chatsAsUser2       Chat[]              @relation("ChatUser2")
+  comments           Comment[]
+  education          Education[]
+  studentEducations  StudentEducation[]
+  experiences        Experience[]
+  resume             String?
+  cvUrl              String?
+  headline           String?
+  bio                String?
+  avatar             String?
+  socialLinks        Json?
+  visibility         Visibility          @default(PUBLIC)
+  isPublic           Boolean             @default(true)
+
   // ChatGroup relations
-  ownedGroups       ChatGroup[]  @relation("GroupOwner")
-  groupMemberships  ChatGroup[]  @relation("GroupMembers")
-  groupMessages     GroupMessage[]
+  ownedGroups        ChatGroup[]         @relation("GroupOwner")
+  groupMemberships   ChatGroup[]         @relation("GroupMembers")
+  groupMessages      GroupMessage[]
 
   // Enhanced Auth relations
-  userSessions      UserSession[]
-  twoFactorAuth     TwoFactorAuth?
-  backupCodes       BackupCode[]
-  securityLogs      SecurityLog[]
-  trustedDevices    TrustedDevice[]
-  jobRecommendations JobRecommendation[]
+  userSessions        UserSession[]
+  twoFactorAuth       TwoFactorAuth?
+  backupCodes         BackupCode[]
+  securityLogs        SecurityLog[]
+  trustedDevices      TrustedDevice[]
+  jobRecommendations  JobRecommendation[]
+  savedJobs           SavedJob[]
+  savedEvents         SavedEvent[]
   // Document uploads
-  documents         Document[]
+  documents           Document[]
   passwordResetTokens PasswordResetToken[]
-  
+
   // Content Moderation relations
-  authoredModerationRequests   ModerationRequest[] @relation("ModerationAuthor")
-  reportedModerationRequests   ModerationRequest[] @relation("ModerationReporter")
-  moderatedRequests            ModerationRequest[] @relation("ModerationModerator")
-  
+  authoredModerationRequests ModerationRequest[] @relation("ModerationAuthor")
+  reportedModerationRequests ModerationRequest[] @relation("ModerationReporter")
+  moderatedRequests          ModerationRequest[] @relation("ModerationModerator")
+
   // Company Review relations
-  companyReviews               CompanyReview[]
+  companyReviews CompanyReview[]
 
   // Message relations
-  sentMessages     Message[] @relation("SentMessages")
-  receivedMessages Message[] @relation("ReceivedMessages")
+  sentMessages       Message[]           @relation("SentMessages")
+  receivedMessages   Message[]           @relation("ReceivedMessages")
+  chatParticipants   Chat[]              @relation("ChatParticipants")
 
   // New relations
-  status               UserStatus  @default(ACTIVE)
-  emailVerified        Boolean     @default(false)
-  phoneVerified        Boolean     @default(false)
-  twoFactorEnabled     Boolean     @default(false)
-  lastActive           DateTime?
+  status           UserStatus @default(ACTIVE)
+  emailVerified    Boolean    @default(false)
+  phoneVerified    Boolean    @default(false)
+  twoFactorEnabled Boolean    @default(false)
+  lastActive       DateTime?
 
   // Relations
   universityPartnerships UniversityPartnership[]
 
+  // Enhanced Event relations
+  eventAttendees    EventAttendee[]
+  eventFeedback     EventFeedback[]
+  networkingUser1   NetworkingMatch[]  @relation("NetworkingUser1")
+  networkingUser2   NetworkingMatch[]  @relation("NetworkingUser2")
+  eventChatMessages EventChatMessage[]
+  questionsAsked    EventQA[]          @relation("QuestionAsker")
+  questionsAnswered EventQA[]          @relation("QuestionAnswerer")
+
+  // Mentorship relations
+  mentorProfile        MentorProfile?
+  menteeRequests       MentorshipRequest[] @relation("MenteeRequests")
+  menteeRelationships  Mentorship[]        @relation("MenteeRelationships")
+  menteeSessions       MentorshipSession[] @relation("MenteeSessions")
+  sessionFeedback      SessionFeedback[]
+  mentorshipReviews    MentorshipReview[]  @relation("MentorshipReviews")
+  createdPrograms      MentorshipProgram[]
+  programEnrollments   ProgramEnrollment[]
+
   @@map("users")
 }
+
 model JobRecommendation {
   id        String   @id @default(uuid())
   userId    String
   jobId     String
-  score     Float    // AI confidence score (0-1)
-  reasons   Json?    // JSON array of matching reasons
+  score     Float // AI confidence score (0-1)
+  reasons   Json? // JSON array of matching reasons
   createdAt DateTime @default(now())
-  
-  user      User     @relation(fields: [userId], references: [id])
-  job       Job      @relation(fields: [jobId], references: [id])
-  
+
+  user User @relation(fields: [userId], references: [id])
+  job  Job  @relation(fields: [jobId], references: [id])
+
   @@unique([userId, jobId])
 }
+
+model SavedJob {
+  id        String   @id @default(uuid())
+  userId    String
+  jobId     String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  job  Job  @relation(fields: [jobId], references: [id])
+
+  @@unique([userId, jobId])
+}
+
+model SavedEvent {
+  id        String   @id @default(uuid())
+  userId    String
+  eventId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@map("saved_events")
+}
+
 // Enhanced Authentication Models
 model VerificationCode {
   id        String   @id @default(uuid())
   email     String
-  code      String?  // Optional for backward compatibility
-  token     String?  // New: verification token for links
-  type      String   // 'email_verification', 'password_reset', 'two_factor', 'account_reactivation'
+  code      String? // Optional for backward compatibility
+  token     String? // New: verification token for links
+  type      String // 'email_verification', 'password_reset', 'two_factor', 'account_reactivation'
   expiresAt DateTime
   attempts  Int      @default(0)
   isUsed    Boolean  @default(false) // New: track if token has been used
@@ -170,41 +222,41 @@ model VerificationCode {
 }
 
 model UserSession {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sessionToken String?  @unique
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionToken String?   @unique
   deviceName   String?
   deviceId     String?
   ipAddress    String?
   userAgent    String?
   location     String?
-  isActive     Boolean  @default(true)
-  lastActivity DateTime @default(now())
-  createdAt    DateTime @default(now())
+  isActive     Boolean   @default(true)
+  lastActivity DateTime  @default(now())
+  createdAt    DateTime  @default(now())
   expiresAt    DateTime?
 
   @@index([userId])
 }
 
 model TwoFactorAuth {
-  id          String  @id @default(uuid())
-  userId      String  @unique
-  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  secret      String  // TOTP secret
-  isConfirmed Boolean @default(false)
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  secret      String // TOTP secret
+  isConfirmed Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
 
 model BackupCode {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  code      String   // Hashed backup code
-  isUsed    Boolean  @default(false)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  code      String // Hashed backup code
+  isUsed    Boolean   @default(false)
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([userId])
 }
@@ -224,10 +276,10 @@ model SecurityLog {
   id        String   @id @default(uuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  event     String   // 'LOGIN_SUCCESS', 'LOGIN_FAILED', 'PASSWORD_CHANGED', etc.
+  event     String // 'LOGIN_SUCCESS', 'LOGIN_FAILED', 'PASSWORD_CHANGED', etc.
   ipAddress String?
   userAgent String?
-  metadata  Json?    // Additional event data
+  metadata  Json? // Additional event data
   timestamp DateTime @default(now())
 
   @@index([userId, timestamp])
@@ -240,8 +292,8 @@ model TrustedDevice {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   deviceId    String   @unique
   deviceName  String
-  deviceType  String   // 'mobile', 'desktop', 'tablet'
-  fingerprint String   // Device fingerprint hash
+  deviceType  String // 'mobile', 'desktop', 'tablet'
+  fingerprint String // Device fingerprint hash
   isActive    Boolean  @default(true)
   lastUsed    DateTime @default(now())
   createdAt   DateTime @default(now())
@@ -252,7 +304,7 @@ model TrustedDevice {
 model PasswordHistory {
   id        String   @id @default(uuid())
   userId    String
-  password  String   // Hashed password
+  password  String // Hashed password
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
@@ -264,7 +316,7 @@ model LoginAttempt {
   ipAddress  String?
   userAgent  String?
   success    Boolean
-  failReason String?  // Reason for failure if unsuccessful
+  failReason String? // Reason for failure if unsuccessful
   timestamp  DateTime @default(now())
 
   @@index([email, timestamp])
@@ -276,7 +328,7 @@ model PasswordResetToken {
   token     String   @unique
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type      String   // 'PASSWORD_RESET', 'PASSWORD_SETUP'
+  type      String // 'PASSWORD_RESET', 'PASSWORD_SETUP'
   isUsed    Boolean  @default(false)
   expiresAt DateTime
   createdAt DateTime @default(now())
@@ -286,7 +338,7 @@ model PasswordResetToken {
 }
 
 model Education {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   institution String
   degree      String
   field       String
@@ -294,135 +346,181 @@ model Education {
   endDate     DateTime?
   grade       String?
   activities  String[]
-  user     User  @relation(fields: [userId], references: [id])
-  userId   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
+  user        User      @relation(fields: [userId], references: [id])
+  userId      String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
 }
 
 model Experience {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   title       String
   description String
   startDate   DateTime
   endDate     DateTime?
-  isCurrent   Boolean  @default(false)
+  isCurrent   Boolean   @default(false)
   location    String
   skills      String[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user     User  @relation(fields: [userId], references: [id])
-  userId   String
-  company     Company  @relation(fields: [companyId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id])
+  userId      String
+  company     Company   @relation(fields: [companyId], references: [id])
   companyId   String
-  deletedAt DateTime?
+  deletedAt   DateTime?
 }
 
 model Skill {
-  id          String   @id @default(uuid())
-  name        String
+  id           String    @id @default(uuid())
+  name         String
   endorsements Int?
-  user     User  @relation(fields: [userId], references: [id])
-  userId   String
-  deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  user         User      @relation(fields: [userId], references: [id])
+  userId       String
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
 
 model Company {
-  id          String         @id @default(uuid())
+  id          String            @id @default(uuid())
   name        String
   description String
   logo        String?
   website     String?
   industry    String
   size        String
-  isVerified  Boolean        @default(false)
-  owner       User           @relation(fields: [ownerId], references: [id])
+  isVerified  Boolean           @default(false)
+  owner       User              @relation(fields: [ownerId], references: [id])
   ownerId     String
   jobs        Job[]
   experiences Experience[]
   locations   CompanyLocation[]
   reviews     CompanyReview[]
-  documents   Document[]     @relation("CompanyDocuments")
-  
+  documents   Document[]        @relation("CompanyDocuments")
+
   // Enhanced company fields
-  type        String?        // "Private", "Public", "Non-profit", etc.
-  foundedYear Int?
+  type            String? // "Private", "Public", "Non-profit", etc.
+  foundedYear     Int?
   specializations String[]
-  phone       String?
-  email       String?
-  linkedIn    String?
-  twitter     String?
-  facebook    String?
-  
+  phone           String?
+  email           String?
+  linkedIn        String?
+  twitter         String?
+  facebook        String?
+
   // Verification fields
   verificationStatus VerificationStatus @default(PENDING)
   verificationNotes  String?
   verifiedAt         DateTime?
   verifiedBy         String?
-  
+
   // University partnerships
   universityPartnerships UniversityPartnership[]
-  
-  deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
-  // Add new relations
-  campusEvents          CampusEvent[]
+  // Event relations
+  events       Event[]
+  campusEvents CampusEvent[]
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 model CompanyLocation {
-  id          String   @id @default(uuid())
-  companyId   String
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  
+  id        String  @id @default(uuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
   // Location details
   address     String?
   city        String
   state       String?
   country     String
   zipCode     String?
-  countryCode String?  // ISO country code (US, CA, etc.)
-  
+  countryCode String? // ISO country code (US, CA, etc.)
+
   // Location metadata
   isHeadquarters Boolean @default(false)
   locationType   String? // "headquarters", "branch", "remote", etc.
   timezone       String?
-  
+
   // IP-based detection metadata
   detectedFromIp Boolean @default(false)
   ipAddress      String?
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  deletedAt   DateTime?
-  
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
   @@index([companyId])
   @@index([country, city])
 }
 
 model Job {
-  id                  String            @id @default(uuid())
-  title              String
-  description        String
-  requirements       String[]
-  type              String
-  location          String
-  salary            Json
+  id                  String              @id @default(uuid())
+  title               String
+  description         String
+  requirements        String[]
+  type                String
+  jobType             JobType             @default(FULL_TIME)
+  location            String
+  salary              Json
   applicationDeadline DateTime
-  status            JobStatus          @default(ACTIVE)
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  company           Company            @relation(fields: [companyId], references: [id])
-  companyId         String
-  postedBy          User               @relation("PostedJobs", fields: [postedById], references: [id])
-  postedById        String
-  applications      JobApplication[]
-  deletedAt DateTime?
-  jobRecommendations JobRecommendation[]
+  status              JobStatus           @default(ACTIVE)
+  
+  // Internship-specific fields
+  isInternship        Boolean             @default(false)
+  duration            InternshipDuration?
+  customDuration      String? // For custom duration descriptions
+  compensationType    CompensationType    @default(PAID)
+  stipendAmount       Float?
+  housingProvided     Boolean             @default(false)
+  housingStipend      Float?
+  transportationStipend Float?
+  mealAllowance       Float?
+  academicCredit      Boolean             @default(false)
+  creditHours         Int?
+  
+  // Program details
+  programName         String? // e.g., "Google Summer Internship Program"
+  cohortSize          Int? // Number of interns in the program
+  mentorshipProvided  Boolean             @default(false)
+  trainingProvided    Boolean             @default(false)
+  networkingEvents    Boolean             @default(false)
+  
+  // Application requirements
+  gpaRequirement      Float? // Minimum GPA
+  graduationYear      Int? // Target graduation year
+  eligibleMajors      String[]
+  preferredSkills     String[]
+  portfolioRequired   Boolean             @default(false)
+  transcriptRequired  Boolean             @default(false)
+  
+  // Timeline
+  applicationOpenDate DateTime?
+  startDate           DateTime?
+  endDate             DateTime?
+  
+  // Conversion opportunities
+  fullTimeConversion  Boolean             @default(false)
+  returnOfferRate     Float? // Percentage of interns who get return offers
+  
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  company             Company             @relation(fields: [companyId], references: [id])
+  companyId           String
+  postedBy            User                @relation("PostedJobs", fields: [postedById], references: [id])
+  postedById          String
+  applications        JobApplication[]
+  deletedAt           DateTime?
+  jobRecommendations  JobRecommendation[]
+  savedByUsers        SavedJob[]
+  
+  @@index([jobType])
+  @@index([isInternship])
+  @@index([applicationDeadline])
+  @@index([startDate])
 }
 
 model JobApplication {
@@ -437,34 +535,34 @@ model JobApplication {
   jobId       String
   user        User              @relation(fields: [userId], references: [id])
   userId      String
-  deletedAt DateTime?
-  createdAt DateTime @default(now())
-  
+  deletedAt   DateTime?
+  createdAt   DateTime          @default(now())
+
   // New relations
-  interviews  Interview[]
-  source      String?           // Source of application (direct, referral, job_board, etc.)
+  interviews Interview[]
+  source     String? // Source of application (direct, referral, job_board, etc.)
 }
 
 model Interview {
-  id              String           @id @default(uuid())
-  applicationId   String
-  interviewType   InterviewType
-  scheduledAt     DateTime
-  duration        Int?             // Duration in minutes
-  status          InterviewStatus  @default(SCHEDULED)
-  notes           String?
-  feedback        String?
-  rating          Int?             // 1-5 rating
-  interviewerIds  String[]         // Array of interviewer user IDs
-  meetingLink     String?
-  location        String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  completedAt     DateTime?
-  
+  id             String          @id @default(uuid())
+  applicationId  String
+  interviewType  InterviewType
+  scheduledAt    DateTime
+  duration       Int? // Duration in minutes
+  status         InterviewStatus @default(SCHEDULED)
+  notes          String?
+  feedback       String?
+  rating         Int? // 1-5 rating
+  interviewerIds String[] // Array of interviewer user IDs
+  meetingLink    String?
+  location       String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  completedAt    DateTime?
+
   // Relations
-  application     JobApplication   @relation(fields: [applicationId], references: [id])
-  
+  application JobApplication @relation(fields: [applicationId], references: [id])
+
   @@index([applicationId])
   @@index([scheduledAt])
   @@index([status])
@@ -480,208 +578,459 @@ model CandidateSource {
 }
 
 model SkillInDemand {
-  id              String   @id @default(uuid())
-  skillName       String   @unique
-  demandCount     Int      @default(0)
-  growthPercent   Float    @default(0)
-  lastUpdated     DateTime @default(now())
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id            String   @id @default(uuid())
+  skillName     String   @unique
+  demandCount   Int      @default(0)
+  growthPercent Float    @default(0)
+  lastUpdated   DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model CompanyReview {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   companyId   String
   reviewerId  String
-  rating      Int      // 1-5 rating
+  rating      Int // 1-5 rating
   title       String?
   content     String
   pros        String?
   cons        String?
-  isAnonymous Boolean  @default(false)
-  isVerified  Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isAnonymous Boolean   @default(false)
+  isVerified  Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
-  
+
   // Relations
-  company     Company  @relation(fields: [companyId], references: [id])
-  reviewer    User     @relation(fields: [reviewerId], references: [id])
-  
+  company  Company @relation(fields: [companyId], references: [id])
+  reviewer User    @relation(fields: [reviewerId], references: [id])
+
   @@index([companyId])
   @@index([reviewerId])
   @@index([rating])
 }
 
 model Post {
-  id          String     @id @default(uuid())
+  id          String    @id @default(uuid())
   title       String
   content     String
   tags        String[]
   attachments String[]
-  likes       Int        @default(0)
-  views       Int        @default(0)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  forum       Forum      @relation(fields: [forumId], references: [id])
+  likes       Int       @default(0)
+  views       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  forum       Forum     @relation(fields: [forumId], references: [id])
   forumId     String
-  user        User       @relation(fields: [userId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
   userId      String
   comments    Comment[]
-  deletedAt DateTime?
+  deletedAt   DateTime?
 }
 
 model Comment {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   content   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  post      Post     @relation(fields: [postId], references: [id])
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  post      Post      @relation(fields: [postId], references: [id])
   postId    String
-  user User @relation(fields: [userId], references: [id])
-  userId String
+  user      User      @relation(fields: [userId], references: [id])
+  userId    String
   deletedAt DateTime?
-
 }
 
 model Forum {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   name        String
   description String
   category    String
   moderators  String[]
   posts       Post[]
-  deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 model Event {
-  id                   String             @id @default(uuid())
-  title               String
-  description         String
-  type               String
-  startDate          DateTime
-  endDate            DateTime
-  location           String
-  mode               EventMode
-  capacity           Int
-  registrationDeadline DateTime
-  status             EventStatus         @default(UPCOMING)
-  creator            User                @relation(fields: [creatorId], references: [id])
-  creatorId          String
-  registrations      EventRegistration[]
-  deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
+  id               String        @id @default(uuid())
+  title            String
+  description      String
+  shortDescription String? // Brief summary for cards
+  type             String
+  category         EventCategory @default(CAREER_FAIR)
+  tags             String[] // Searchable tags
 
-model EventRegistration {
-  id        String   @id @default(uuid())
-  event     Event    @relation(fields: [eventId], references: [id])
-  eventId   String
-  createdAt DateTime @default(now())
-  deletedAt DateTime?
-  updatedAt DateTime @updatedAt
-  User User[]
-}
+  // Event timing
+  startDate DateTime
+  endDate   DateTime
+  timezone  String   @default("UTC")
+  duration  Int? // Duration in minutes
 
-model Chat {
-  id           String    @id @default(uuid())
-  type         String
-  participants String[]
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  messages     Message[]
-  user         User      @relation(fields: [userId], references: [id])
-  userId       String
-  deletedAt DateTime?
-}
+  // Location details
+  location String
+  venue    String? // Specific venue name
+  address  String? // Full address
+  city     String?
+  state    String?
+  country  String?
 
-model Message {
-  id          String    @id @default(uuid())
-  content     String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  chat        Chat      @relation(fields: [chatId], references: [id])
-  chatId      String
-  sender      User      @relation("SentMessages", fields: [senderId], references: [id])
-  senderId    String
-  recipient   User      @relation("ReceivedMessages", fields: [recipientId], references: [id])
-  recipientId String
-  status      MessageStatus @default(SENT)
-  readAt      DateTime?
-  deliveredAt DateTime?
-  metadata    Json?     // For additional message data (typing, reactions, etc.)
-  attachments String[]  // URLs to any attached files
-  replyTo     Message?  @relation("MessageReplies", fields: [replyToId], references: [id])
-  replyToId   String?
-  replies     Message[] @relation("MessageReplies")
-  isEdited    Boolean   @default(false)
-  editHistory Json?     // Track message edit history
-  deletedAt   DateTime?
+  mode         EventMode
+  meetingLink  String? // For virtual/hybrid events
+  streamingUrl String? // For live streaming
 
-  @@index([senderId])
-  @@index([recipientId])
-  @@index([chatId])
-  @@index([createdAt])
-}
+  // Registration details
+  capacity             Int
+  currentAttendees     Int       @default(0)
+  registrationDeadline DateTime?
+  registrationFee      Float?    @default(0)
+  isRegistrationOpen   Boolean   @default(true)
+  requiresApproval     Boolean   @default(false)
 
-enum MessageStatus {
-  SENT
-  DELIVERED
-  READ
-  FAILED
-}
+  // Event metadata
+  status     EventStatus   @default(UPCOMING)
+  isPublic   Boolean       @default(true)
+  isFeatured Boolean       @default(false)
+  priority   EventPriority @default(MEDIUM)
 
-model Notification {
-  id        String   @id @default(uuid())
-  title     String
-  content   String
-  type      String
-  priority  String?  @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
-  link      String?
-  metadata  Json?    // Additional data for the notification
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String
-  deletedAt DateTime?
-  updatedAt DateTime @updatedAt
-  
-  @@index([userId, read])
-  @@index([userId, type])
-  @@index([createdAt])
-}
-model ChatGroup {
-  id          String         @id @default(uuid())
-  name        String         @unique
-  description String?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  isActive    Boolean        @default(true)
-  
+  // Content and media
+  bannerImage String? // Event banner/poster
+  gallery     String[] // Additional images
+  agenda      Json? // Detailed agenda/schedule
+  speakers    Json? // Speaker information
+  sponsors    Json? // Sponsor information
+  resources   String[] // Resource links/documents
+
+  // Networking features
+  enableNetworking Boolean @default(false)
+  enableChat       Boolean @default(false)
+  enableQA         Boolean @default(false)
+
+  // Analytics
+  viewCount  Int @default(0)
+  shareCount Int @default(0)
+
   // Relations
-  members     User[]         @relation("GroupMembers")
-  owner       User           @relation("GroupOwner", fields: [ownerId], references: [id])
-  ownerId     String
-  messages    GroupMessage[]
-  deletedAt   DateTime?
-}
+  creator   User   @relation(fields: [creatorId], references: [id])
+  creatorId String
 
-model GroupMessage {
-  id        String    @id @default(uuid())
-  content   String
+  // Enhanced relations
+  registrations     EventRegistration[]
+  attendees         EventAttendee[]
+  feedback          EventFeedback[]
+  announcements     EventAnnouncement[]
+  networkingMatches NetworkingMatch[]
+  chatMessages      EventChatMessage[]
+  qaQuestions       EventQA[]
+  savedByUsers      SavedEvent[]
+
+  // Company/University relations
+  companyId    String?
+  company      Company?    @relation(fields: [companyId], references: [id])
+  universityId String?
+  university   University? @relation(fields: [universityId], references: [id])
+
+  deletedAt DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
-  isEdited  Boolean   @default(false)
-  
-  // Relations
-  group     ChatGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  groupId   String
-  sender    User      @relation(fields: [senderId], references: [id])
-  senderId  String
+
+  @@index([category, startDate])
+  @@index([city, startDate])
+  @@index([status])
+  @@index([isFeatured])
+  @@index([companyId])
+  @@index([universityId])
+  @@map("events")
+}
+
+// Enhanced event registration with more details
+model EventRegistration {
+  id      String @id @default(uuid())
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId  String
+
+  // Registration details
+  status           RegistrationStatus @default(REGISTERED)
+  registeredAt     DateTime           @default(now())
+  checkedInAt      DateTime?
+  attendanceStatus AttendanceStatus   @default(REGISTERED)
+
+  // Additional info
+  dietaryRestrictions String?
+  accessibilityNeeds  String?
+  emergencyContact    String?
+  tshirtSize          String?
+  interests           String[] // What they're interested in
+  goals               String? // What they hope to achieve
+
+  // Networking preferences
+  lookingFor String[] // Job opportunities, mentorship, etc.
+  industries String[] // Industries of interest
+  skills     String[] // Skills they have/want to learn
+  experience String? // Experience level
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+  @@index([status])
+  @@map("event_registrations")
+}
+
+// Track actual attendance
+model EventAttendee {
+  id      String @id @default(uuid())
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId  String
+
+  checkedInAt        DateTime  @default(now())
+  checkedOutAt       DateTime?
+  attendanceDuration Int? // Minutes attended
+
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+  @@map("event_attendees")
+}
+
+// Event feedback and ratings
+model EventFeedback {
+  id      String @id @default(uuid())
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId  String
+
+  // Ratings (1-5 scale)
+  overallRating      Int // Overall event rating
+  contentRating      Int? // Content quality
+  organizationRating Int? // Event organization
+  venueRating        Int? // Venue/platform rating
+  networkingRating   Int? // Networking opportunities
+
+  // Feedback text
+  feedback     String? // General feedback
+  improvements String? // Suggestions for improvement
+  highlights   String? // What they liked most
+
+  // Recommendations
+  wouldRecommend   Boolean?
+  wouldAttendAgain Boolean?
+
+  isAnonymous Boolean @default(false)
+  isPublic    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([overallRating])
+  @@map("event_feedback")
+}
+
+// Event announcements and updates
+model EventAnnouncement {
+  id      String @id @default(uuid())
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId String
+
+  title    String
+  content  String
+  type     AnnouncementType     @default(GENERAL)
+  priority AnnouncementPriority @default(NORMAL)
+
+  // Targeting
+  targetAudience String[] // All, Speakers, Attendees, etc.
+
+  // Scheduling
+  publishAt   DateTime? // For scheduled announcements
+  isPublished Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([eventId])
+  @@index([publishAt])
+  @@map("event_announcements")
+}
+
+// Networking matches for attendees
+model NetworkingMatch {
+  id      String @id @default(uuid())
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId String
+
+  user1   User   @relation("NetworkingUser1", fields: [user1Id], references: [id], onDelete: Cascade)
+  user1Id String
+  user2   User   @relation("NetworkingUser2", fields: [user2Id], references: [id], onDelete: Cascade)
+  user2Id String
+
+  matchScore      Float // Algorithm-generated compatibility score
+  commonInterests String[] // Shared interests/goals
+
+  status      MatchStatus @default(SUGGESTED)
+  connectedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, user1Id, user2Id])
+  @@index([eventId])
+  @@index([user1Id])
+  @@index([user2Id])
+  @@map("networking_matches")
+}
+
+// Event chat messages
+model EventChatMessage {
+  id      String @id @default(uuid())
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId  String
+
+  content     String
+  type        ChatMessageType @default(TEXT)
+  attachments String[] // File URLs
+
+  // Moderation
+  isModerated Boolean @default(false)
+  isHidden    Boolean @default(false)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([eventId, createdAt])
+  @@index([userId])
+  @@map("event_chat_messages")
+}
+
+// Q&A functionality
+model EventQA {
+  id      String @id @default(uuid())
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId String
+
+  question String
+  answer   String?
+
+  // Question details
+  askedBy      User    @relation("QuestionAsker", fields: [askedById], references: [id], onDelete: Cascade)
+  askedById    String
+  answeredBy   User?   @relation("QuestionAnswerer", fields: [answeredById], references: [id], onDelete: SetNull)
+  answeredById String?
+
+  // Engagement
+  upvotes       Int     @default(0)
+  isAnswered    Boolean @default(false)
+  isHighlighted Boolean @default(false)
+
+  answeredAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([eventId])
+  @@index([askedById])
+  @@map("event_qa")
+}
+
+// New enums for the enhanced event system
+enum EventCategory {
+  CAREER_FAIR
+  JOB_FAIR
+  NETWORKING_EVENT
+  TECH_TALK
+  WORKSHOP
+  WEBINAR
+  CONFERENCE
+  SEMINAR
+  HACKATHON
+  COMPETITION
+  PANEL_DISCUSSION
+  INTERVIEW_PREP
+  RESUME_REVIEW
+  SKILL_BUILDING
+  INDUSTRY_MIXER
+  STARTUP_PITCH
+  RESEARCH_SYMPOSIUM
+  MENTORSHIP_EVENT
+  COMPANY_SHOWCASE
+  VIRTUAL_BOOTH
+  CAMPUS_VISIT
+  INFO_SESSION
+  OPEN_HOUSE
+  GRADUATION_EVENT
+  ALUMNI_MEETUP
+}
+
+enum EventPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum RegistrationStatus {
+  REGISTERED
+  WAITLISTED
+  CONFIRMED
+  CANCELLED
+  NO_SHOW
+}
+
+enum AttendanceStatus {
+  REGISTERED
+  CHECKED_IN
+  ATTENDED
+  NO_SHOW
+  LEFT_EARLY
+}
+
+enum AnnouncementType {
+  GENERAL
+  SCHEDULE_CHANGE
+  VENUE_CHANGE
+  CANCELLATION
+  REMINDER
+  WELCOME
+  THANK_YOU
+  NETWORKING
+  TECHNICAL
+}
+
+enum AnnouncementPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum MatchStatus {
+  SUGGESTED
+  ACCEPTED
+  DECLINED
+  CONNECTED
+  BLOCKED
+}
+
+enum ChatMessageType {
+  TEXT
+  IMAGE
+  FILE
+  LINK
+  POLL
+  ANNOUNCEMENT
 }
 
 enum Visibility {
@@ -717,28 +1066,28 @@ enum EventStatus {
 }
 
 model Document {
-  id                  String             @id @default(uuid())
-  userId              String
-  companyId           String?            // Optional relation to company
-  documentType        DocumentType
-  originalName        String
-  cloudinaryPublicId  String
-  cloudinaryUrl       String
-  fileSize            Int
-  mimeType            String
-  uploadedAt          DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
-  isVerified          Boolean            @default(false)
-  verificationStatus  VerificationStatus @default(PENDING)
-  verificationNotes   String?
-  verifiedAt          DateTime?
-  verifiedBy          String?
-  deletedAt           DateTime?
-  createdAt           DateTime           @default(now())
+  id                 String             @id @default(uuid())
+  userId             String
+  companyId          String? // Optional relation to company
+  documentType       DocumentType
+  originalName       String
+  cloudinaryPublicId String
+  cloudinaryUrl      String
+  fileSize           Int
+  mimeType           String
+  uploadedAt         DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  isVerified         Boolean            @default(false)
+  verificationStatus VerificationStatus @default(PENDING)
+  verificationNotes  String?
+  verifiedAt         DateTime?
+  verifiedBy         String?
+  deletedAt          DateTime?
+  createdAt          DateTime           @default(now())
   // Relations
-  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  company             Company?           @relation("CompanyDocuments", fields: [companyId], references: [id], onDelete: Cascade)
-  
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company            Company?           @relation("CompanyDocuments", fields: [companyId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([companyId])
   @@index([documentType])
@@ -816,28 +1165,28 @@ enum SeverityLevel {
 
 // Content Moderation Models
 model ModerationRequest {
-  id              String            @id @default(uuid())
-  contentType     ContentType
-  contentId       String
-  content         String
-  authorId        String?
-  reporterId      String?
-  status          ModerationStatus  @default(PENDING)
-  severity        SeverityLevel     @default(LOW)
-  violationTypes  ViolationType[]
-  moderatorId     String?
-  moderatorNotes  String?
-  reason          String?
-  metadata        Json?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  resolvedAt      DateTime?
-  
+  id             String           @id @default(uuid())
+  contentType    ContentType
+  contentId      String
+  content        String
+  authorId       String?
+  reporterId     String?
+  status         ModerationStatus @default(PENDING)
+  severity       SeverityLevel    @default(LOW)
+  violationTypes ViolationType[]
+  moderatorId    String?
+  moderatorNotes String?
+  reason         String?
+  metadata       Json?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  resolvedAt     DateTime?
+
   // Relations
-  author          User?             @relation("ModerationAuthor", fields: [authorId], references: [id])
-  reporter        User?             @relation("ModerationReporter", fields: [reporterId], references: [id])
-  moderator       User?             @relation("ModerationModerator", fields: [moderatorId], references: [id])
-  
+  author    User? @relation("ModerationAuthor", fields: [authorId], references: [id])
+  reporter  User? @relation("ModerationReporter", fields: [reporterId], references: [id])
+  moderator User? @relation("ModerationModerator", fields: [moderatorId], references: [id])
+
   @@index([status])
   @@index([contentType])
   @@index([severity])
@@ -872,60 +1221,62 @@ enum InterviewStatus {
 
 // New models for university partnerships
 model University {
-  id                String   @id @default(cuid())
-  name              String   @unique
-  shortName         String?  // e.g., "MIT", "Stanford"
-  description       String?
-  website           String?
-  email             String?
-  phone             String?
-  
+  id          String  @id @default(uuid())
+  name        String  @unique
+  shortName   String? // e.g., "MIT", "Stanford"
+  description String?
+  website     String?
+  email       String?
+  phone       String?
+
   // Location information
-  address           String?
-  city              String
-  state             String?
-  country           String
-  zipCode           String?
-  timezone          String?
-  
+  address  String?
+  city     String
+  state    String?
+  country  String
+  zipCode  String?
+  timezone String?
+
   // University details
-  type              UniversityType @default(PUBLIC)
-  accreditation     String?
-  establishedYear   Int?
-  studentCount      Int?
-  facultyCount      Int?
-  
+  type            UniversityType @default(PUBLIC)
+  accreditation   String?
+  establishedYear Int?
+  studentCount    Int?
+  facultyCount    Int?
+
   // Rankings and recognition
-  worldRanking      Int?
-  nationalRanking   Int?
-  isTopTier         Boolean @default(false)
-  
+  worldRanking    Int?
+  nationalRanking Int?
+  isTopTier       Boolean @default(false)
+
   // Visual and branding
-  logo              String?
-  banner            String?
-  colors            Json?    // Brand colors
-  
+  logo   String?
+  banner String?
+  colors Json? // Brand colors
+
   // Academic information
-  departments       String[] // Array of department names
-  popularMajors     String[] // Most popular majors
-  graduationRate    Float?   // Percentage
-  employmentRate    Float?   // Post-graduation employment rate
-  
+  departments    String[] // Array of department names
+  popularMajors  String[] // Most popular majors
+  graduationRate Float? // Percentage
+  employmentRate Float? // Post-graduation employment rate
+
   // Partnership readiness
   isPartnershipReady Boolean @default(false)
   partnershipEmail   String? // Dedicated email for partnerships
   partnershipContact String? // Contact person name
-  
+
   // Metadata
-  isActive          Boolean  @default(true)
-  isVerified        Boolean  @default(false)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  isActive   Boolean  @default(true)
+  isVerified Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   // Relations
   partnerships      UniversityPartnership[]
   campusEvents      CampusEvent[]
-  
+  studentEducations StudentEducation[]
+  events            Event[]
+
   @@index([country, city])
   @@index([type])
   @@index([isPartnershipReady])
@@ -936,99 +1287,99 @@ model University {
 
 // Update UniversityPartnership model to include relations and metrics
 model UniversityPartnership {
-  id                    String                @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // Partnership basics
-  title                 String                // Partnership name/title
-  description           String?
-  status                PartnershipStatus     @default(PENDING)
-  priority              PartnershipPriority   @default(MEDIUM)
-  
+  title       String // Partnership name/title
+  description String?
+  status      PartnershipStatus   @default(PENDING)
+  priority    PartnershipPriority @default(MEDIUM)
+
   // Timeline
-  startDate             DateTime?
-  endDate               DateTime?
-  renewalDate           DateTime?
-  isRenewable           Boolean               @default(true)
-  
+  startDate   DateTime?
+  endDate     DateTime?
+  renewalDate DateTime?
+  isRenewable Boolean   @default(true)
+
   // Partnership scope and goals
-  partnershipType       PartnershipType[]     // Multiple types possible
-  targetStudentYear     StudentYear[]         // Freshman, Sophomore, etc.
-  targetMajors          String[]              // Specific majors of interest
-  targetSkills          String[]              // Required/preferred skills
-  
+  partnershipType   PartnershipType[] // Multiple types possible
+  targetStudentYear StudentYear[] // Freshman, Sophomore, etc.
+  targetMajors      String[] // Specific majors of interest
+  targetSkills      String[] // Required/preferred skills
+
   // Hiring goals and metrics
-  annualHiringGoal      Int                   @default(0)
-  internshipGoal        Int                   @default(0)
-  coopGoal              Int                   @default(0) // Co-op positions
-  entryLevelGoal        Int                   @default(0)
-  
+  annualHiringGoal Int @default(0)
+  internshipGoal   Int @default(0)
+  coopGoal         Int @default(0) // Co-op positions
+  entryLevelGoal   Int @default(0)
+
   // Actual metrics (tracked)
-  studentsHired         Int                   @default(0)
-  internsHired          Int                   @default(0)
-  coopStudentsHired     Int                   @default(0)
-  applicationsReceived  Int                   @default(0)
-  
+  studentsHired        Int @default(0)
+  internsHired         Int @default(0)
+  coopStudentsHired    Int @default(0)
+  applicationsReceived Int @default(0)
+
   // Benefits offered to university
-  benefits              Json?                 // Structured benefits data
-  scholarshipAmount     Float?                // Annual scholarship commitment
-  equipmentDonation     String?               // Lab equipment, software licenses
-  guestLectures         Boolean               @default(false)
-  industryProjects      Boolean               @default(false)
-  researchCollaboration Boolean               @default(false)
-  
+  benefits              Json? // Structured benefits data
+  scholarshipAmount     Float? // Annual scholarship commitment
+  equipmentDonation     String? // Lab equipment, software licenses
+  guestLectures         Boolean @default(false)
+  industryProjects      Boolean @default(false)
+  researchCollaboration Boolean @default(false)
+
   // Requirements from university
-  requirements          Json?                 // Structured requirements
-  exclusiveAccess       Boolean               @default(false)
-  minimumGPA            Float?
+  requirements           Json? // Structured requirements
+  exclusiveAccess        Boolean  @default(false)
+  minimumGPA             Float?
   requiredCertifications String[]
-  
+
   // Contact information
-  companyContactName    String?
-  companyContactEmail   String?
-  companyContactPhone   String?
-  universityContactName String?
+  companyContactName     String?
+  companyContactEmail    String?
+  companyContactPhone    String?
+  universityContactName  String?
   universityContactEmail String?
-  
+
   // Partnership activities
-  campusRecruitment     Boolean               @default(true)
-  virtualRecruitment    Boolean               @default(true)
-  careerFairs           Boolean               @default(true)
-  infoSessions          Boolean               @default(true)
-  networkingEvents      Boolean               @default(true)
-  
+  campusRecruitment  Boolean @default(true)
+  virtualRecruitment Boolean @default(true)
+  careerFairs        Boolean @default(true)
+  infoSessions       Boolean @default(true)
+  networkingEvents   Boolean @default(true)
+
   // Financial terms
-  partnershipFee        Float?                // Annual fee if any
-  recruitmentFee        Float?                // Per hire fee
-  currency              String                @default("USD")
-  
+  partnershipFee Float? // Annual fee if any
+  recruitmentFee Float? // Per hire fee
+  currency       String @default("USD")
+
   // Performance metrics
-  avgTimeToHire         Int?                  // Days
-  retentionRate         Float?                // Percentage of hires still with company
-  satisfactionScore     Float?                // University satisfaction (1-5)
-  
+  avgTimeToHire     Int? // Days
+  retentionRate     Float? // Percentage of hires still with company
+  satisfactionScore Float? // University satisfaction (1-5)
+
   // Legal and compliance
-  contractSigned        Boolean               @default(false)
-  contractUrl           String?               // Link to signed contract
-  complianceNotes       String?
-  
+  contractSigned  Boolean @default(false)
+  contractUrl     String? // Link to signed contract
+  complianceNotes String?
+
   // Metadata
-  lastActivityDate      DateTime?
-  notes                 String?               // Internal notes
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
+  lastActivityDate DateTime?
+  notes            String? // Internal notes
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   // Relations
-  universityId          String
-  university            University            @relation(fields: [universityId], references: [id], onDelete: Cascade)
-  companyId             String
-  company               Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdById           String                // User who created the partnership
-  createdBy             User                  @relation(fields: [createdById], references: [id])
-  
+  universityId String
+  university   University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  companyId    String
+  company      Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdById  String // User who created the partnership
+  createdBy    User       @relation(fields: [createdById], references: [id])
+
   // Related activities
-  campusEvents          CampusEvent[]
-  recruitmentCampaigns  RecruitmentCampaign[]
-  
+  campusEvents         CampusEvent[]
+  recruitmentCampaigns RecruitmentCampaign[]
+
   @@unique([universityId, companyId]) // One partnership per university-company pair
   @@index([status])
   @@index([partnershipType])
@@ -1039,38 +1390,38 @@ model UniversityPartnership {
 
 // Campus events and activities
 model CampusEvent {
-  id                String              @id @default(cuid())
-  title             String
-  description       String?
-  type              CampusEventType
-  status            EventStatus         @default(UPCOMING)
-  
+  id          String          @id @default(cuid())
+  title       String
+  description String?
+  type        CampusEventType
+  status      EventStatus     @default(UPCOMING)
+
   // Event details
   startDateTime     DateTime
   endDateTime       DateTime
   timezone          String?
   location          String?
-  isVirtual         Boolean             @default(false)
+  isVirtual         Boolean  @default(false)
   meetingLink       String?
   capacity          Int?
-  registrationCount Int                 @default(0)
-  
+  registrationCount Int      @default(0)
+
   // Event metadata
-  isPublic          Boolean             @default(true)
-  requiresRSVP      Boolean             @default(true)
-  rsvpDeadline      DateTime?
-  
+  isPublic     Boolean   @default(true)
+  requiresRSVP Boolean   @default(true)
+  rsvpDeadline DateTime?
+
   // Relations
-  universityId      String?
-  university        University?         @relation(fields: [universityId], references: [id])
-  partnershipId     String?
-  partnership       UniversityPartnership? @relation(fields: [partnershipId], references: [id])
-  companyId         String
-  company           Company             @relation(fields: [companyId], references: [id])
-  
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-  
+  universityId  String?
+  university    University?            @relation(fields: [universityId], references: [id])
+  partnershipId String?
+  partnership   UniversityPartnership? @relation(fields: [partnershipId], references: [id])
+  companyId     String
+  company       Company                @relation(fields: [companyId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([type, startDateTime])
   @@index([universityId])
   @@index([companyId])
@@ -1079,30 +1430,30 @@ model CampusEvent {
 
 // Recruitment campaigns for tracking
 model RecruitmentCampaign {
-  id                String                @id @default(cuid())
-  name              String
-  description       String?
-  status            CampaignStatus        @default(ACTIVE)
-  
+  id          String         @id @default(cuid())
+  name        String
+  description String?
+  status      CampaignStatus @default(ACTIVE)
+
   // Campaign details
-  startDate         DateTime
-  endDate           DateTime
-  budget            Float?
-  targetHires       Int                   @default(0)
-  actualHires       Int                   @default(0)
-  
+  startDate   DateTime
+  endDate     DateTime
+  budget      Float?
+  targetHires Int      @default(0)
+  actualHires Int      @default(0)
+
   // Targeting
-  targetMajors      String[]
-  targetGradYear    Int[]
-  targetSkills      String[]
-  
+  targetMajors   String[]
+  targetGradYear Int[]
+  targetSkills   String[]
+
   // Relations
-  partnershipId     String
-  partnership       UniversityPartnership @relation(fields: [partnershipId], references: [id])
-  
-  createdAt         DateTime              @default(now())
-  updatedAt         DateTime              @updatedAt
-  
+  partnershipId String
+  partnership   UniversityPartnership @relation(fields: [partnershipId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([status])
   @@index([startDate, endDate])
   @@map("recruitment_campaigns")
@@ -1125,15 +1476,15 @@ enum UniversityType {
 }
 
 enum PartnershipStatus {
-  DRAFT           // Being prepared
-  PENDING         // Awaiting university approval
-  UNDER_REVIEW    // Being reviewed by university
-  APPROVED        // Approved by university
-  ACTIVE          // Currently active
-  PAUSED          // Temporarily paused
-  EXPIRED         // Contract expired
-  TERMINATED      // Ended early
-  REJECTED        // Rejected by university
+  DRAFT // Being prepared
+  PENDING // Awaiting university approval
+  UNDER_REVIEW // Being reviewed by university
+  APPROVED // Approved by university
+  ACTIVE // Currently active
+  PAUSED // Temporarily paused
+  EXPIRED // Contract expired
+  TERMINATED // Ended early
+  REJECTED // Rejected by university
 }
 
 enum PartnershipPriority {
@@ -1191,4 +1542,743 @@ enum CampaignStatus {
   PAUSED
   COMPLETED
   CANCELLED
+}
+
+enum EducationStatus {
+  CURRENT
+  COMPLETED
+  PAUSED
+  TRANSFERRED
+}
+
+// New model for student-university relationships with education details
+model StudentEducation {
+  id             String          @id @default(uuid())
+  userId         String
+  universityId   String
+  degree         String?
+  major          String?
+  minor          String?
+  gpa            Float?
+  maxGpa         Float?          @default(4.0)
+  graduationYear Int?
+  startYear      Int?
+  status         EducationStatus @default(CURRENT)
+  activities     String[]
+  honors         String[]
+  isCurrently    Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  university University @relation(fields: [universityId], references: [id])
+
+  @@unique([userId, universityId])
+  @@map("student_educations")
+}
+
+// Notification System Models
+model Notification {
+  id          String            @id @default(uuid())
+  userId      String
+  title       String
+  content     String
+  type        NotificationType  @default(GENERAL)
+  priority    NotificationPriority @default(MEDIUM)
+  isRead      Boolean           @default(false)
+  read        Boolean           @default(false)
+  link        String?
+  metadata    Json?
+  createdAt   DateTime          @default(now())
+  readAt      DateTime?
+  expiresAt   DateTime?
+  deletedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+// Chat System Models
+model Chat {
+  id          String    @id @default(uuid())
+  user1Id     String
+  user2Id     String
+  type        String?   @default("direct")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  lastMessageAt DateTime?
+  deletedAt   DateTime?
+
+  user1    User      @relation("ChatUser1", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2    User      @relation("ChatUser2", fields: [user2Id], references: [id], onDelete: Cascade)
+  messages Message[]
+  participants User[] @relation("ChatParticipants")
+
+  @@unique([user1Id, user2Id])
+  @@map("chats")
+}
+
+model Message {
+  id        String      @id @default(uuid())
+  chatId    String
+  senderId  String
+  recipientId String?
+  content   String
+  type      MessageType @default(TEXT)
+  isRead    Boolean     @default(false)
+  isEdited  Boolean     @default(false)
+  metadata  Json?
+  createdAt DateTime    @default(now())
+  editedAt  DateTime?
+
+  chat      Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender    User @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient User? @relation("ReceivedMessages", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model ChatGroup {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  ownerId     String
+  isPrivate   Boolean   @default(false)
+  maxMembers  Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  avatar      String?
+  deletedAt   DateTime?
+
+  owner    User           @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members  User[]         @relation("GroupMembers")
+  messages GroupMessage[]
+
+  @@map("chat_groups")
+}
+
+model GroupMessage {
+  id        String      @id @default(uuid())
+  groupId   String
+  senderId  String
+  content   String
+  type      MessageType @default(TEXT)
+  isEdited  Boolean     @default(false)
+  metadata  Json?
+  createdAt DateTime    @default(now())
+  editedAt  DateTime?
+
+  group  ChatGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sender User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@map("group_messages")
+}
+
+// Enums for Notifications and Chat
+enum NotificationType {
+  GENERAL
+  JOB_APPLICATION
+  EVENT_REGISTRATION
+  MESSAGE
+  SYSTEM
+  REMINDER
+  ALERT
+  WELCOME
+  COMPANY_VERIFICATION
+}
+
+enum NotificationPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+  SYSTEM
+}
+
+// Mentorship System Models
+model MentorProfile {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  bio         String?
+  expertise   String[] // Areas of expertise
+  industries  String[] // Industries they work in
+  yearsOfExperience Int
+  currentRole String?
+  currentCompany String?
+  
+  // Availability and preferences
+  isAvailable     Boolean @default(true)
+  maxMentees      Int     @default(5)
+  currentMentees  Int     @default(0)
+  preferredMeetingMode MeetingMode @default(VIRTUAL)
+  timeZone        String?
+  availableHours  Json?   // Structured availability data
+  
+  // Pricing (optional for premium mentors)
+  hourlyRate      Float?
+  currency        String  @default("USD")
+  isPaidMentor    Boolean @default(false)
+  
+  // Verification and ratings
+  isVerified      Boolean @default(false)
+  verifiedAt      DateTime?
+  averageRating   Float?  @default(0)
+  totalReviews    Int     @default(0)
+  
+  // Profile metadata
+  profileViews    Int     @default(0)
+  totalSessions   Int     @default(0)
+  successRate     Float?  @default(0)
+  responseTime    Int?    // Average response time in hours
+  
+  // Status and settings
+  status          MentorStatus @default(ACTIVE)
+  isPublic        Boolean @default(true)
+  allowsGroupSessions Boolean @default(false)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mentorshipRequests  MentorshipRequest[]  @relation("MentorRequests")
+  mentorshipSessions  MentorshipSession[]  @relation("MentorSessions")
+  mentorReviews       MentorshipReview[]   @relation("MentorReviews")
+  mentorshipPrograms  MentorshipProgram[]  @relation("ProgramMentors")
+  mentorshipRelationships Mentorship[]         @relation("MentorRelationships")
+  
+  @@index([isAvailable, isVerified])
+  @@index([expertise])
+  @@index([industries])
+  @@index([averageRating])
+  @@map("mentor_profiles")
+}
+
+model MentorshipRequest {
+  id          String   @id @default(uuid())
+  menteeId    String
+  mentorId    String
+  
+  // Request details
+  title       String
+  description String
+  goals       String[] // What the mentee wants to achieve
+  duration    Int?     // Requested duration in weeks
+  meetingFrequency String? // "weekly", "bi-weekly", "monthly"
+  
+  // Status and timeline
+  status      MentorshipRequestStatus @default(PENDING)
+  requestedAt DateTime @default(now())
+  respondedAt DateTime?
+  startDate   DateTime?
+  endDate     DateTime?
+  
+  // Response from mentor
+  mentorResponse String?
+  mentorNotes    String?
+  
+  // Matching and priority
+  matchScore     Float?  // Algorithm-generated compatibility score
+  priority       RequestPriority @default(MEDIUM)
+  isUrgent       Boolean @default(false)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  mentee User         @relation("MenteeRequests", fields: [menteeId], references: [id], onDelete: Cascade)
+  mentor MentorProfile @relation("MentorRequests", fields: [mentorId], references: [id], onDelete: Cascade)
+  
+  // If accepted, create a mentorship relationship
+  mentorship Mentorship?
+  
+  @@index([status])
+  @@index([mentorId, status])
+  @@index([menteeId])
+  @@index([requestedAt])
+  @@map("mentorship_requests")
+}
+
+model Mentorship {
+  id               String   @id @default(uuid())
+  requestId        String   @unique
+  menteeId         String
+  mentorId         String
+  
+  // Mentorship details
+  title            String
+  description      String?
+  goals            String[]
+  startDate        DateTime
+  endDate          DateTime?
+  isActive         Boolean  @default(true)
+  
+  // Meeting preferences
+  meetingFrequency String   // "weekly", "bi-weekly", "monthly"
+  preferredDuration Int     @default(60) // Minutes per session
+  meetingMode      MeetingMode @default(VIRTUAL)
+  
+  // Progress tracking
+  completedSessions Int     @default(0)
+  totalSessions     Int     @default(0)
+  progressScore     Float?  @default(0)
+  
+  // Status
+  status           MentorshipStatus @default(ACTIVE)
+  pausedAt         DateTime?
+  pauseReason      String?
+  completedAt      DateTime?
+  completionReason String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  request  MentorshipRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  mentee   User              @relation("MenteeRelationships", fields: [menteeId], references: [id], onDelete: Cascade)
+  mentor   MentorProfile     @relation("MentorRelationships", fields: [mentorId], references: [id], onDelete: Cascade)
+  sessions MentorshipSession[]
+  reviews  MentorshipReview[]
+  goals_tracking GoalTracking[]
+  
+  @@index([status])
+  @@index([menteeId])
+  @@index([mentorId])
+  @@index([startDate, endDate])
+  @@map("mentorships")
+}
+
+model MentorshipSession {
+  id            String   @id @default(uuid())
+  mentorshipId  String?
+  mentorId      String
+  menteeId      String
+  
+  // Session details
+  title         String
+  description   String?
+  agenda        String[]
+  sessionType   SessionType @default(ONE_ON_ONE)
+  
+  // Scheduling
+  scheduledAt   DateTime
+  duration      Int      @default(60) // Minutes
+  timeZone      String?
+  meetingMode   MeetingMode @default(VIRTUAL)
+  meetingLink   String?
+  location      String?
+  
+  // Status and tracking
+  status        SessionStatus @default(SCHEDULED)
+  startedAt     DateTime?
+  endedAt       DateTime?
+  actualDuration Int?     // Actual duration in minutes
+  
+  // Content and notes
+  sessionNotes  String?
+  actionItems   String[]
+  resources     String[] // Links to resources shared
+  recordings    String[] // Recording URLs if any
+  
+  // Attendance
+  mentorAttended  Boolean @default(false)
+  menteeAttended  Boolean @default(false)
+  noShowReason    String?
+  
+  // Follow-up
+  followUpRequired Boolean @default(false)
+  nextSessionDate  DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  mentorship Mentorship?       @relation(fields: [mentorshipId], references: [id], onDelete: SetNull)
+  mentor     MentorProfile     @relation("MentorSessions", fields: [mentorId], references: [id], onDelete: Cascade)
+  mentee     User             @relation("MenteeSessions", fields: [menteeId], references: [id], onDelete: Cascade)
+  feedback   SessionFeedback[]
+  
+  @@index([scheduledAt])
+  @@index([status])
+  @@index([mentorId])
+  @@index([menteeId])
+  @@index([mentorshipId])
+  @@map("mentorship_sessions")
+}
+
+model SessionFeedback {
+  id        String @id @default(uuid())
+  sessionId String
+  userId    String // Can be mentor or mentee
+  
+  // Ratings (1-5 scale)
+  overallRating     Int
+  preparationRating Int?
+  communicationRating Int?
+  helpfulnessRating Int?
+  
+  // Feedback text
+  feedback          String?
+  improvements      String?
+  highlights        String?
+  
+  // Session outcome
+  goalsMet          Boolean?
+  wouldRecommend    Boolean?
+  sessionValue      SessionValue @default(HELPFUL)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  session MentorshipSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([sessionId, userId])
+  @@index([sessionId])
+  @@index([overallRating])
+  @@map("session_feedback")
+}
+
+model MentorshipReview {
+  id           String @id @default(uuid())
+  mentorshipId String?
+  mentorId     String
+  reviewerId   String // Mentee who is reviewing
+  
+  // Ratings (1-5 scale)
+  overallRating      Int
+  communicationRating Int?
+  knowledgeRating    Int?
+  supportRating      Int?
+  availabilityRating Int?
+  
+  // Review content
+  title       String?
+  review      String
+  pros        String?
+  cons        String?
+  
+  // Review metadata
+  isPublic    Boolean @default(true)
+  isAnonymous Boolean @default(false)
+  isVerified  Boolean @default(false)
+  
+  // Recommendation
+  wouldRecommend Boolean?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  mentorship Mentorship?   @relation(fields: [mentorshipId], references: [id], onDelete: SetNull)
+  mentor     MentorProfile @relation("MentorReviews", fields: [mentorId], references: [id], onDelete: Cascade)
+  reviewer   User         @relation("MentorshipReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
+  
+  @@index([mentorId])
+  @@index([overallRating])
+  @@index([isPublic])
+  @@map("mentorship_reviews")
+}
+
+model GoalTracking {
+  id           String @id @default(uuid())
+  mentorshipId String
+  
+  // Goal details
+  title        String
+  description  String?
+  category     GoalCategory @default(CAREER)
+  priority     GoalPriority @default(MEDIUM)
+  
+  // Timeline
+  targetDate   DateTime?
+  startDate    DateTime @default(now())
+  completedAt  DateTime?
+  
+  // Progress
+  status       GoalStatus @default(NOT_STARTED)
+  progress     Int        @default(0) // Percentage (0-100)
+  milestones   Json?      // Array of milestone objects
+  
+  // Tracking
+  lastUpdated  DateTime @default(now())
+  notes        String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  mentorship Mentorship @relation(fields: [mentorshipId], references: [id], onDelete: Cascade)
+  updates    GoalUpdate[]
+  
+  @@index([mentorshipId])
+  @@index([status])
+  @@index([targetDate])
+  @@map("goal_tracking")
+}
+
+model GoalUpdate {
+  id     String @id @default(uuid())
+  goalId String
+  
+  // Update details
+  title       String
+  description String?
+  progress    Int    // New progress percentage
+  
+  // Metadata
+  updatedBy   String // User ID who made the update
+  updateType  UpdateType @default(PROGRESS)
+  
+  createdAt DateTime @default(now())
+  
+  // Relations
+  goal GoalTracking @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  
+  @@index([goalId])
+  @@index([createdAt])
+  @@map("goal_updates")
+}
+
+model MentorshipProgram {
+  id          String @id @default(uuid())
+  
+  // Program details
+  title       String
+  description String
+  objectives  String[]
+  duration    Int      // Duration in weeks
+  capacity    Int      @default(20)
+  
+  // Program structure
+  sessionCount     Int @default(8)
+  sessionDuration  Int @default(60) // Minutes
+  meetingFrequency String @default("weekly")
+  
+  // Eligibility and requirements
+  eligibilityCriteria String[]
+  prerequisites       String[]
+  targetAudience      String[]
+  
+  // Program status
+  status        ProgramStatus @default(DRAFT)
+  isPublic      Boolean       @default(false)
+  applicationDeadline DateTime?
+  startDate     DateTime?
+  endDate       DateTime?
+  
+  // Enrollment
+  currentEnrollment Int @default(0)
+  maxEnrollment     Int @default(20)
+  
+  // Program metadata
+  createdBy     String
+  tags          String[]
+  difficulty    DifficultyLevel @default(BEGINNER)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  creator      User                    @relation(fields: [createdBy], references: [id])
+  mentors      MentorProfile[]         @relation("ProgramMentors")
+  enrollments  ProgramEnrollment[]
+  
+  @@index([status])
+  @@index([startDate])
+  @@index([tags])
+  @@map("mentorship_programs")
+}
+
+model ProgramEnrollment {
+  id        String @id @default(uuid())
+  programId String
+  userId    String
+  
+  // Enrollment details
+  status       EnrollmentStatus @default(PENDING)
+  appliedAt    DateTime         @default(now())
+  approvedAt   DateTime?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  
+  // Application
+  applicationText String?
+  motivation      String?
+  goals           String[]
+  
+  // Progress
+  progress        Int @default(0) // Percentage
+  sessionsAttended Int @default(0)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  program MentorshipProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([programId, userId])
+  @@index([status])
+  @@index([programId])
+  @@map("program_enrollments")
+}
+
+// Mentorship System Enums
+enum MentorStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+  VERIFIED
+}
+
+enum MentorshipRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+  EXPIRED
+}
+
+enum MentorshipStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+  TERMINATED
+}
+
+enum SessionStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+  RESCHEDULED
+}
+
+enum SessionType {
+  ONE_ON_ONE
+  GROUP
+  WORKSHOP
+  CONSULTATION
+  FOLLOW_UP
+}
+
+enum MeetingMode {
+  VIRTUAL
+  IN_PERSON
+  HYBRID
+  PHONE
+}
+
+enum SessionValue {
+  VERY_HELPFUL
+  HELPFUL
+  NEUTRAL
+  NOT_HELPFUL
+  WASTE_OF_TIME
+}
+
+enum RequestPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum GoalCategory {
+  CAREER
+  SKILL_DEVELOPMENT
+  NETWORKING
+  LEADERSHIP
+  PERSONAL_GROWTH
+  TECHNICAL
+  COMMUNICATION
+  OTHER
+}
+
+enum GoalPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum GoalStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum UpdateType {
+  PROGRESS
+  MILESTONE
+  NOTE
+  COMPLETION
+  REVISION
+}
+
+enum ProgramStatus {
+  DRAFT
+  PUBLISHED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  SUSPENDED
+}
+
+enum EnrollmentStatus {
+  PENDING
+  APPROVED
+  ACTIVE
+  COMPLETED
+  DROPPED
+  REJECTED
+}
+
+enum DifficultyLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+// New enum for job types including internships
+enum JobType {
+  FULL_TIME
+  PART_TIME
+  INTERNSHIP
+  CO_OP
+  CONTRACT
+  FREELANCE
+  TEMPORARY
+}
+
+// New enum for internship duration
+enum InternshipDuration {
+  SUMMER // 10-12 weeks
+  SEMESTER // 16 weeks
+  QUARTER // 10 weeks
+  YEAR_ROUND // 12 months
+  CUSTOM
+}
+
+// New enum for compensation type
+enum CompensationType {
+  PAID
+  UNPAID
+  STIPEND
+  ACADEMIC_CREDIT
 }

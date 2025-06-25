@@ -171,6 +171,68 @@ export class JobQueryDto {
   @IsEnum(JobStatus)
   status?: JobStatus;
 
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Filter for remote-only positions',
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value === 'true';
+    }
+    return value;
+  })
+  remoteOnly?: boolean;
+
+  @ApiPropertyOptional({
+    example: ['Full-time', 'Part-time'],
+    description: 'Array of job types',
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value.split(',').map((s) => s.trim());
+    }
+    return value;
+  })
+  jobType?: string[];
+
+  @ApiPropertyOptional({
+    example: ['Entry Level', 'Mid Level'],
+    description: 'Array of experience levels',
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value.split(',').map((s) => s.trim());
+    }
+    return value;
+  })
+  experience?: string[];
+
+  @ApiPropertyOptional({
+    example: ['Technology', 'Finance'],
+    description: 'Array of industries',
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value.split(',').map((s) => s.trim());
+    }
+    return value;
+  })
+  industry?: string[];
+
   @ApiPropertyOptional({ example: 1, minimum: 1 })
   @IsOptional()
   @Type(() => Number)

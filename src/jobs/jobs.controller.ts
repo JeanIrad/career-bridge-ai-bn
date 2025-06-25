@@ -72,6 +72,53 @@ export class JobsController {
       );
     }
   }
+  @Get('stats')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.STUDENT, UserRole.ALUMNI)
+  @ApiOperation({ summary: 'Get job statistics for current user' })
+  @ApiResponse({
+    status: 200,
+    description: 'Job statistics retrieved successfully',
+  })
+  async getUserJobStats(@CurrentUser() user: any) {
+    try {
+      const result = await this.jobsService.getUserJobStats(user.id);
+      return {
+        success: true,
+        message: 'Job statistics retrieved successfully',
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Failed to retrieve job statistics',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get('saved')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.STUDENT, UserRole.ALUMNI)
+  @ApiOperation({ summary: 'Get saved jobs for current user' })
+  @ApiResponse({
+    status: 200,
+    description: 'Saved jobs retrieved successfully',
+  })
+  async getSavedJobs(@CurrentUser() user: any) {
+    try {
+      const result = await this.jobsService.getSavedJobs(user.id);
+      return {
+        success: true,
+        message: 'Saved jobs retrieved successfully',
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Failed to retrieve saved jobs',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 
   @Get('my-jobs')
   @UseGuards(RolesGuard)
@@ -379,7 +426,12 @@ export class JobsController {
   async applyToJob(
     @Param('id') id: string,
     @CurrentUser() user: any,
-    @Body() applicationData: { resumeUrl: string; coverLetter?: string },
+    @Body()
+    applicationData: {
+      resumeUrl: string;
+      coverLetter?: string;
+      additionalDocuments?: string[];
+    },
   ) {
     try {
       const application = await this.jobsService.applyToJob(
@@ -395,6 +447,56 @@ export class JobsController {
     } catch (error) {
       throw new HttpException(
         error.message || 'Failed to submit application',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  @Post(':id/save')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.STUDENT, UserRole.ALUMNI)
+  @ApiOperation({ summary: 'Save a job for later' })
+  @ApiParam({ name: 'id', description: 'Job ID' })
+  @ApiResponse({
+    status: 201,
+    description: 'Job saved successfully',
+  })
+  async saveJob(@Param('id') id: string, @CurrentUser() user: any) {
+    try {
+      const result = await this.jobsService.saveJob(id, user.id);
+      return {
+        success: true,
+        message: 'Job saved successfully',
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Failed to save job',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  @Delete(':id/unsave')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.STUDENT, UserRole.ALUMNI)
+  @ApiOperation({ summary: 'Unsave a job' })
+  @ApiParam({ name: 'id', description: 'Job ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Job unsaved successfully',
+  })
+  async unsaveJob(@Param('id') id: string, @CurrentUser() user: any) {
+    try {
+      const result = await this.jobsService.unsaveJob(id, user.id);
+      return {
+        success: true,
+        message: 'Job unsaved successfully',
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Failed to unsave job',
         HttpStatus.BAD_REQUEST,
       );
     }

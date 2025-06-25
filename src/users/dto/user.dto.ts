@@ -161,6 +161,11 @@ export class UpdateUserProfileDto {
   @IsOptional()
   @IsBoolean()
   isPublic?: boolean;
+
+  @ApiPropertyOptional({ example: 'Software Engineer' })
+  @IsOptional()
+  @IsString()
+  major?: string;
 }
 
 // Education DTOs
