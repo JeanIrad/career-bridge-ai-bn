@@ -1,49 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
+import * as tf from '@tensorflow/tfjs-node';
+import * as path from 'path';
+import * as fs from 'fs';
+import type {
+  UserProfile as AIUserProfile,
+  JobData as AIJobData,
+  RecommendationResult as AIRecommendationResult,
+  ModelPrediction,
+  FeatureMetadata,
+} from './types';
 
-export interface UserProfile {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  university?: string;
-  major?: string;
-  graduationYear?: number;
-  gpa?: number;
-  bio?: string;
-  headline?: string;
-  location: {
-    city?: string;
-    state?: string;
-    country?: string;
-  };
-  skills: Array<{
-    name: string;
-    endorsements?: number;
-  }>;
-  education: Array<{
-    institution: string;
-    degree: string;
-    field: string;
-    grade?: string;
-    startDate: Date;
-    endDate?: Date;
-  }>;
-  experiences: Array<{
-    title: string;
-    company: string;
-    description: string;
-    location: string;
-    startDate: Date;
-    endDate?: Date;
-    isCurrent: boolean;
-    skills: string[];
-  }>;
-  languages: string[];
-  interests: string[];
-  availability?: string;
-}
 export interface OpportunityData {
   id: string;
   title: string;
@@ -72,188 +40,414 @@ export interface JobData {
   status: string;
 }
 
-export interface RecommendationResult {
-  jobId: string;
-  score: number;
-  reasons: string[];
-}
+// Export types for other modules
+export type {
+  AIUserProfile as UserProfile,
+  AIJobData,
+  AIRecommendationResult as RecommendationResult,
+};
 
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
   private readonly huggingFaceApiUrl =
     'https://api-inference.huggingface.co/models';
-  private readonly modelName = 'mistralai/Mistral-7B-Instruct-v0.1'; // Free model
+  private readonly modelName = 'mistralai/Mistral-7B-Instruct-v0.1';
+  private model: tf.LayersModel | null = null;
+  private metadata: FeatureMetadata | null = null;
 
-  constructor(private configService: ConfigService) {}
+  constructor(private configService: ConfigService) {
+    this.initializeModel();
+  }
 
-  async generateRecommendations(
-    userProfile: UserProfile,
-    jobs: JobData[],
-  ): Promise<RecommendationResult[]> {
+  private async initializeModel() {
     try {
-      const recommendations: RecommendationResult[] = [];
+      const modelPath = path.join(
+        __dirname,
+        'training',
+        'models',
+        'recommendation-model',
+      );
+      const metadataPath = path.join(
+        __dirname,
+        'training',
+        'models',
+        'metadata.json',
+      );
 
-      // Process jobs in batches to avoid API limits
-      const batchSize = 5;
-      for (let i = 0; i < jobs.length; i += batchSize) {
-        const batch = jobs.slice(i, i + batchSize);
-        const batchResults = await this.processBatch(userProfile, batch);
-        recommendations.push(...batchResults);
+      if (
+        fs.existsSync(`${modelPath}/model.json`) &&
+        fs.existsSync(metadataPath)
+      ) {
+        this.model = await tf.loadLayersModel(`file://${modelPath}/model.json`);
+        this.metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
+        this.logger.log('AI model loaded successfully');
+      } else {
+        this.logger.warn(
+          'AI model not found, falling back to heuristic matching',
+        );
       }
-
-      // Sort by score descending
-      return recommendations.sort((a, b) => b.score - a.score);
     } catch (error) {
-      this.logger.error('Error generating recommendations:', error);
-      throw new Error('Failed to generate AI recommendations');
+      this.logger.error('Error loading AI model:', error);
     }
   }
 
-  private async processBatch(
-    userProfile: UserProfile,
+  async generateRecommendations(
+    userProfile: AIUserProfile,
     jobs: JobData[],
-  ): Promise<RecommendationResult[]> {
-    const prompt = this.buildPrompt(userProfile, jobs);
-
+  ): Promise<AIRecommendationResult[]> {
     try {
-      const response = await axios.post(
-        `${this.huggingFaceApiUrl}/${this.modelName}`,
-        {
-          inputs: prompt,
-          parameters: {
-            max_new_tokens: 1000,
-            temperature: 0.1,
-            return_full_text: false,
-          },
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${this.configService.get('HUGGINGFACE_API_KEY')}`,
-            'Content-Type': 'application/json',
-          },
-          timeout: 30000,
-        },
-      );
-
-      return this.parseResponse(response.data[0]?.generated_text || '', jobs);
+      if (this.model && this.metadata) {
+        return await this.generateAIRecommendations(userProfile, jobs);
+      } else {
+        this.logger.log('Using fallback matching due to missing AI model');
+        return this.fallbackMatching(userProfile, jobs);
+      }
     } catch (error) {
-      this.logger.error('Hugging Face API error:', error);
-      // Fallback to rule-based matching
+      this.logger.error('Error generating recommendations:', error);
       return this.fallbackMatching(userProfile, jobs);
     }
   }
 
-  private buildPrompt(userProfile: UserProfile, jobs: JobData[]): string {
-    const userSkills = userProfile.skills.map((s) => s.name).join(', ');
-    const userExperiences = userProfile.experiences
-      .map((exp) => `${exp.title} at ${exp.company} (${exp.skills.join(', ')})`)
-      .join('; ');
-    const userEducation = userProfile.education
-      .map(
-        (edu) =>
-          `${edu.degree} in ${edu.field} from ${edu.institution} (${edu.grade || 'N/A'})`,
-      )
-      .join('; ');
-
-    let prompt = `You are a career matching AI. Analyze the user profile and rate each job from 0.0 to 1.0 based on how well they match.
-
-User Profile:
-- Name: ${userProfile.firstName} ${userProfile.lastName}
-- University: ${userProfile.university || 'Not specified'}
-- Major: ${userProfile.major || 'Not specified'}
-- Graduation Year: ${userProfile.graduationYear || 'Not specified'}
-- GPA: ${userProfile.gpa || 'Not specified'}
-- Current Location: ${userProfile.location.city || ''} ${userProfile.location.state || ''} ${userProfile.location.country || ''}
-- Bio: ${userProfile.bio || 'Not provided'}
-- Headline: ${userProfile.headline || 'Not provided'}
-- Skills: ${userSkills}
-- Languages: ${userProfile.languages.join(', ')}
-- Interests: ${userProfile.interests.join(', ')}
-- Work Experience: ${userExperiences}
-- Education: ${userEducation}
-- Availability: ${userProfile.availability || 'Not specified'}
-
-Jobs to evaluate:
-`;
-
-    jobs.forEach((job, index) => {
-      const salaryInfo =
-        typeof job.salary === 'object'
-          ? JSON.stringify(job.salary)
-          : job.salary;
-      prompt += `
-${index + 1}. ID: ${job.id}
-   Title: ${job.title}
-   Company: ${job.company.name}
-   Type: ${job.type}
-   Location: ${job.location}
-   Salary: ${salaryInfo}
-   Requirements: ${job.requirements.join('; ')}
-   Description: ${job.description.substring(0, 200)}...
-   Deadline: ${job.applicationDeadline.toISOString().split('T')[0]}
-`;
-    });
-
-    prompt += `
-Rate each job based on:
-1. Skills match (user skills vs job requirements)
-2. Experience relevance (user experience vs job requirements)
-3. Education compatibility (user education vs job requirements)
-4. Location preference (if specified)
-5. Career progression potential
-6. Interest alignment
-
-For each job, provide a score (0.0-1.0) and 2-3 brief reasons for the match. Format your response as JSON:
-{
-  "recommendations": [
-    {
-      "jobId": "job_id",
-      "score": 0.85,
-      "reasons": ["Strong skills match", "Relevant experience", "Good career progression"]
+  private async generateAIRecommendations(
+    userProfile: AIUserProfile,
+    jobs: JobData[],
+  ): Promise<AIRecommendationResult[]> {
+    if (!this.metadata) {
+      throw new Error('Model metadata not loaded');
     }
-  ]
-}
 
-Response:`;
+    // Create feature vectors for each job
+    const features = jobs.map((job) =>
+      this.createFeatureVector(userProfile, job),
+    );
 
-    return prompt;
+    // Get predictions from the model
+    const predictions = this.model!.predict(tf.tensor2d(features)) as tf.Tensor;
+    const scores = (await predictions.array()) as ModelPrediction[];
+
+    // Convert predictions to recommendations with proper matchDetails
+    return jobs.map((job, index) => {
+      const [interviewProb, hireProb] = scores[index];
+      const score = this.calculateOverallScore(interviewProb, hireProb);
+      const skillMatch = this.calculateSkillMatchScore(userProfile, job);
+      const experienceMatch = this.calculateExperienceMatchScore(
+        userProfile,
+        job,
+      );
+      const educationMatch = this.calculateEducationMatchScore(
+        userProfile,
+        job,
+      );
+      const industryMatch = this.calculateIndustryMatchScore(userProfile, job);
+
+      const reasons = this.generateReasons(
+        userProfile,
+        job,
+        score,
+        interviewProb,
+        hireProb,
+      );
+
+      return {
+        jobId: job.id,
+        score,
+        reasons,
+        matchDetails: {
+          interviewProbability: interviewProb,
+          hireProbability: hireProb,
+          skillMatch,
+          experienceMatch,
+          educationMatch,
+          industryMatch,
+        },
+      };
+    });
   }
 
-  private parseResponse(
-    response: string,
-    jobs: JobData[],
-  ): RecommendationResult[] {
-    try {
-      // Clean up the response
-      const cleanResponse = response.trim();
-      let jsonStart = cleanResponse.indexOf('{');
-      let jsonEnd = cleanResponse.lastIndexOf('}') + 1;
+  private createFeatureVector(
+    userProfile: AIUserProfile,
+    job: JobData,
+  ): number[] {
+    if (!this.metadata) {
+      throw new Error('Model metadata not loaded');
+    }
 
-      if (jsonStart === -1 || jsonEnd === 0) {
-        throw new Error('No valid JSON found in response');
+    // Skills matching
+    const skillsVector = new Array(this.metadata!.skillsList.length).fill(0);
+    userProfile.skills.forEach((skill) => {
+      const index = this.metadata!.skillsList.indexOf(skill.name.toLowerCase());
+      if (index !== -1) skillsVector[index] = 1;
+    });
+
+    // Experience matching
+    const experienceVector = new Array(this.metadata!.titlesList.length).fill(
+      0,
+    );
+    userProfile.experiences.forEach((exp) => {
+      const index = this.metadata!.titlesList.indexOf(exp.title.toLowerCase());
+      if (index !== -1) {
+        const duration = this.calculateDuration(
+          exp.startDate,
+          exp.endDate || null,
+        );
+        experienceVector[index] = duration / 12; // Normalize to years
+      }
+    });
+
+    // Education level
+    const educationLevel = userProfile.education.reduce((max, edu) => {
+      const level = this.getEducationLevel(edu.degree);
+      return Math.max(max, level);
+    }, 0);
+
+    // Industry matching
+    const industryVector = new Array(this.metadata!.industryList.length).fill(
+      0,
+    );
+    const index = this.metadata!.industryList.indexOf(
+      job.company.industry?.toLowerCase() || '',
+    );
+    if (index !== -1) industryVector[index] = 1;
+
+    return [
+      ...skillsVector,
+      ...experienceVector,
+      educationLevel,
+      ...industryVector,
+    ];
+  }
+
+  private calculateOverallScore(
+    interviewProb: number,
+    hireProb: number,
+  ): number {
+    // Weighted combination of probabilities
+    const weights = {
+      interview: 0.4,
+      hire: 0.6,
+    };
+    return interviewProb * weights.interview + hireProb * weights.hire;
+  }
+
+  private calculateSkillMatchScore(
+    userProfile: AIUserProfile,
+    job: JobData,
+  ): number {
+    if (!this.metadata?.skillsList) return 0;
+
+    const userSkills = userProfile.skills.map((s) => s.name.toLowerCase());
+    const jobSkills = job.requirements.map((r) => r.toLowerCase());
+
+    let matchScore = 0;
+    for (const skill of userSkills) {
+      if (jobSkills.includes(skill)) {
+        matchScore += 1;
+      }
+    }
+
+    return matchScore / Math.max(jobSkills.length, 1);
+  }
+
+  private calculateExperienceMatchScore(
+    userProfile: AIUserProfile,
+    job: JobData,
+  ): number {
+    if (!this.metadata?.titlesList) return 0;
+
+    let totalRelevance = 0;
+    for (const exp of userProfile.experiences) {
+      const titleRelevance = this.calculateTitleRelevance(exp.title, job.title);
+      const duration = this.calculateDuration(
+        exp.startDate,
+        exp.endDate || null,
+      );
+      totalRelevance += titleRelevance * Math.min(duration / 365, 1); // Cap at 1 year
+    }
+
+    return Math.min(totalRelevance, 1);
+  }
+
+  private calculateEducationMatchScore(
+    userProfile: AIUserProfile,
+    job: JobData,
+  ): number {
+    let score = 0;
+
+    for (const edu of userProfile.education) {
+      // Higher score for relevant degrees
+      if (this.isRelevantDegree(edu.field, job.requirements)) {
+        score += 0.5;
       }
 
-      const jsonString = cleanResponse.substring(jsonStart, jsonEnd);
-      const parsed = JSON.parse(jsonString);
-
-      return parsed.recommendations || [];
-    } catch (error) {
-      this.logger.warn('Failed to parse AI response, using fallback matching');
-      return this.fallbackMatching(null, jobs);
+      // Bonus for good grades if available
+      if (
+        edu.grade &&
+        (edu.grade.includes('A') || edu.grade.includes('First'))
+      ) {
+        score += 0.2;
+      }
     }
+
+    return Math.min(score, 1);
+  }
+
+  private calculateIndustryMatchScore(
+    userProfile: AIUserProfile,
+    job: JobData,
+  ): number {
+    if (!userProfile.preferences?.industries || !job.company.industry)
+      return 0.5;
+
+    return userProfile.preferences.industries.includes(job.company.industry)
+      ? 1
+      : 0.5;
+  }
+
+  private generateReasons(
+    userProfile: AIUserProfile,
+    job: JobData,
+    score: number,
+    interviewProb: number,
+    hireProb: number,
+  ): string[] {
+    const reasons: string[] = [];
+
+    if (score > 0.8) {
+      reasons.push('Excellent overall match for your profile');
+    } else if (score > 0.6) {
+      reasons.push('Good match for your qualifications');
+    }
+
+    if (interviewProb > 0.7) {
+      reasons.push('High likelihood of getting an interview');
+    }
+
+    if (hireProb > 0.7) {
+      reasons.push('Strong potential for successful placement');
+    }
+
+    // Add skill-based reasons
+    const matchingSkills = userProfile.skills.filter((skill) =>
+      job.requirements.some((req) =>
+        req.toLowerCase().includes(skill.name.toLowerCase()),
+      ),
+    );
+
+    if (matchingSkills.length > 0) {
+      reasons.push(
+        `Matching skills: ${matchingSkills
+          .slice(0, 3)
+          .map((s) => s.name)
+          .join(', ')}${matchingSkills.length > 3 ? ' and more' : ''}`,
+      );
+    }
+
+    // Add experience-based reasons
+    const relevantExperience = userProfile.experiences.find((exp) =>
+      this.isRelevantExperience(exp, job),
+    );
+
+    if (relevantExperience) {
+      reasons.push(`Relevant experience: ${relevantExperience.title}`);
+    }
+
+    return reasons;
+  }
+
+  private isRelevantExperience(
+    experience: AIUserProfile['experiences'][0],
+    job: JobData,
+  ): boolean {
+    const expTitle = experience.title.toLowerCase();
+    const jobTitle = job.title.toLowerCase();
+
+    return (
+      this.calculateStringSimilarity(expTitle, jobTitle) > 0.5 ||
+      experience.skills.some((skill) =>
+        job.requirements.some(
+          (req) =>
+            this.calculateStringSimilarity(
+              skill.toLowerCase(),
+              req.toLowerCase(),
+            ) > 0.7,
+        ),
+      )
+    );
+  }
+
+  private calculateStringSimilarity(str1: string, str2: string): number {
+    const len1 = str1.length;
+    const len2 = str2.length;
+    const maxLen = Math.max(len1, len2);
+    if (maxLen === 0) return 1;
+
+    const distance = this.levenshteinDistance(str1, str2);
+    return 1 - distance / maxLen;
+  }
+
+  private levenshteinDistance(str1: string, str2: string): number {
+    const matrix = Array(str2.length + 1)
+      .fill(null)
+      .map(() => Array(str1.length + 1).fill(null));
+
+    for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
+    for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+
+    for (let j = 1; j <= str2.length; j++) {
+      for (let i = 1; i <= str1.length; i++) {
+        const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
+        matrix[j][i] = Math.min(
+          matrix[j][i - 1] + 1,
+          matrix[j - 1][i] + 1,
+          matrix[j - 1][i - 1] + indicator,
+        );
+      }
+    }
+
+    return matrix[str2.length][str1.length];
+  }
+
+  private calculateDuration(startDate: Date, endDate: Date | null): number {
+    const end = endDate || new Date();
+    const diffTime = Math.abs(end.getTime() - startDate.getTime());
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)); // Convert to days
+  }
+
+  private getEducationLevel(degree: string): number {
+    const degreeLevels: { [key: string]: number } = {
+      'high school': 1,
+      associate: 2,
+      bachelor: 3,
+      master: 4,
+      phd: 5,
+    };
+
+    const normalizedDegree = degree.toLowerCase();
+    for (const [key, value] of Object.entries(degreeLevels)) {
+      if (normalizedDegree.includes(key)) return value;
+    }
+    return 1;
   }
 
   private fallbackMatching(
-    userProfile: UserProfile | null,
+    userProfile: AIUserProfile | null,
     jobs: JobData[],
-  ): RecommendationResult[] {
+  ): AIRecommendationResult[] {
     if (!userProfile) {
       // Return random scores if we can't process
       return jobs.map((job) => ({
         jobId: job.id,
         score: Math.random() * 0.5 + 0.3, // Random score between 0.3-0.8
         reasons: ['Fallback matching applied'],
+        matchDetails: {
+          interviewProbability: 0.3,
+          hireProbability: 0.2,
+          skillMatch: 0.3,
+          experienceMatch: 0.3,
+          educationMatch: 0.3,
+          industryMatch: 0.3,
+        },
       }));
     }
 
@@ -268,9 +462,9 @@ Response:`;
       );
       const locationMatch = this.calculateLocationMatch(
         [
-          userProfile.location.city,
-          userProfile.location.state,
-          userProfile.location.country,
+          userProfile.location?.city,
+          userProfile.location?.state,
+          userProfile.location?.country,
         ]
           .filter(Boolean)
           .join(', '),
@@ -296,6 +490,14 @@ Response:`;
         jobId: job.id,
         score: Math.min(totalScore, 1.0),
         reasons,
+        matchDetails: {
+          interviewProbability: totalScore * 0.8,
+          hireProbability: totalScore * 0.6,
+          skillMatch: skillMatch,
+          experienceMatch: experienceMatch,
+          educationMatch: 0.5,
+          industryMatch: 0.5,
+        },
       };
     });
   }
@@ -322,7 +524,7 @@ Response:`;
   }
 
   private calculateExperienceMatch(
-    experiences: UserProfile['experiences'],
+    experiences: AIUserProfile['experiences'],
     job: JobData,
   ): number {
     if (!experiences.length) return 0.2;
@@ -354,7 +556,7 @@ Response:`;
   }
 
   private calculateEducationMatch(
-    education: UserProfile['education'],
+    education: AIUserProfile['education'],
     job: JobData,
   ): number {
     if (!education.length) return 0.3;
@@ -454,5 +656,35 @@ Response:`;
     if (commonParts.length > 0) return 0.6;
 
     return 0.3;
+  }
+
+  private calculateTitleRelevance(title1: string, title2: string): number {
+    if (!this.metadata?.titlesList) return 0;
+
+    const normalizedTitle1 = title1.toLowerCase();
+    const normalizedTitle2 = title2.toLowerCase();
+
+    // Check for exact match
+    if (normalizedTitle1 === normalizedTitle2) return 1;
+
+    // Check for partial matches
+    const words1 = new Set(normalizedTitle1.split(/\s+/));
+    const words2 = new Set(normalizedTitle2.split(/\s+/));
+
+    let matches = 0;
+    words1.forEach((word) => {
+      if (words2.has(word)) matches++;
+    });
+
+    return matches / Math.max(words1.size, words2.size);
+  }
+
+  private isRelevantDegree(field: string, requirements: string[]): boolean {
+    const normalizedField = field.toLowerCase();
+    const normalizedReqs = requirements.map((r) => r.toLowerCase());
+
+    return normalizedReqs.some(
+      (req) => normalizedField.includes(req) || req.includes(normalizedField),
+    );
   }
 }

@@ -1,12 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AiService } from '../ai/ai.service';
 import {
-  AiService,
   UserProfile,
   JobData,
   RecommendationResult,
-} from '../ai/ai.service';
+  JobSalary,
+} from '../ai/types';
 import { CacheService } from '../cache/cache.service';
+import { JobStatus, JobType } from '@prisma/client';
 
 export interface EnhancedFilters {
   location?: string;
@@ -94,13 +96,13 @@ export interface RecommendationInsights {
 export class EnhancedRecommendationService {
   private readonly logger = new Logger(EnhancedRecommendationService.name);
   private readonly CACHE_TTL = 3600;
-  private readonly MIN_RECOMMENDATION_SCORE = 0.4;
+  private readonly MIN_RECOMMENDATION_SCORE = 0.6;
   private readonly MAX_BATCH_SIZE = 100;
 
   constructor(
-    private prisma: PrismaService,
-    private aiService: AiService,
-    private cacheService: CacheService,
+    private readonly prisma: PrismaService,
+    private readonly aiService: AiService,
+    private readonly cacheService: CacheService,
   ) {}
 
   /**
@@ -436,73 +438,84 @@ export class EnhancedRecommendationService {
   ): Promise<UserProfile | null> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      include: {
-        skills: true,
-        education: true,
-        experiences: true,
-        jobApplications: {
-          include: {
-            job: {
-              include: { company: true },
+      select: {
+        id: true,
+        status: true,
+        skills: {
+          select: {
+            name: true,
+            endorsements: true,
+          },
+        },
+        studentEducations: {
+          select: {
+            degree: true,
+            major: true,
+            graduationYear: true,
+            university: {
+              select: {
+                name: true,
+              },
             },
           },
         },
-        jobRecommendations: {
-          include: {
-            job: {
-              include: { company: true },
+        experiences: {
+          select: {
+            title: true,
+            startDate: true,
+            endDate: true,
+            skills: true,
+            company: {
+              select: {
+                name: true,
+              },
             },
           },
-          orderBy: { createdAt: 'desc' },
-          take: 50,
         },
+        interests: true,
+        city: true,
+        state: true,
+        country: true,
       },
     });
 
     if (!user) return null;
 
-    // Enhanced profile with interaction history
     return {
       id: user.id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      university: user.university ?? undefined,
-      major: user.major ?? undefined,
-      graduationYear: user.graduationYear ?? undefined,
-      gpa: user.gpa ?? undefined,
-      bio: user.bio ?? undefined,
-      headline: user.headline ?? undefined,
-      location: {
-        city: user.city ?? undefined,
-        state: user.state ?? undefined,
-        country: user.country ?? undefined,
-      },
+      status: user.status,
       skills: user.skills.map((skill) => ({
         name: skill.name,
-        endorsements: skill.endorsements || 0,
+        level: String(skill.endorsements || 0),
       })),
-      education: user.education.map((edu) => ({
-        institution: edu.institution,
-        degree: edu.degree,
-        field: edu.field,
-        grade: edu.grade ?? undefined,
-        startDate: edu.startDate,
-        endDate: edu.endDate ?? undefined,
+      education: user.studentEducations.map((edu) => ({
+        degree: edu.degree || 'Unknown',
+        field: edu.major || 'Unknown',
+        institution: edu.university?.name || 'Unknown',
+        graduationDate: edu.graduationYear
+          ? new Date(edu.graduationYear, 5, 1) // Assuming June graduation
+          : new Date(),
       })),
       experiences: user.experiences.map((exp) => ({
         title: exp.title,
-        company: 'Company', // Placeholder - would need to fetch company details separately
-        description: exp.description,
-        location: exp.location,
+        company: exp.company?.name || 'Unknown',
         startDate: exp.startDate,
-        endDate: exp.endDate ?? undefined,
-        isCurrent: exp.isCurrent,
-        skills: exp.skills,
+        endDate: exp.endDate || null,
+        skills: exp.skills || [],
       })),
-      languages: user.languages,
-      interests: user.interests,
-      availability: user.availability ?? undefined,
+      preferences: {
+        industries:
+          user.interests
+            ?.filter((i) => i.startsWith('industry:'))
+            .map((i) => i.replace('industry:', '')) || [],
+        jobTypes:
+          user.interests
+            ?.filter((i) => i.startsWith('jobType:'))
+            .map((i) => i.replace('jobType:', '')) || [],
+        locations: [user.city, user.state, user.country].filter(
+          (loc): loc is string => !!loc,
+        ),
+      },
     };
   }
 
@@ -600,8 +613,13 @@ export class EnhancedRecommendationService {
       description: job.description,
       requirements: job.requirements as string[],
       type: job.type,
-      location: job.location,
-      salary: job.salary,
+      location: {
+        city: job.location?.city,
+        state: job.location?.state,
+        country: job.location?.country,
+      },
+      salary: job.salary as JobSalary,
+      postedDate: job.createdAt || new Date(),
       applicationDeadline: job.applicationDeadline,
       company: {
         name: job.company.name,
@@ -614,7 +632,7 @@ export class EnhancedRecommendationService {
     // Use AI service for base scoring
     const aiRecommendations = await this.aiService.generateRecommendations(
       userProfile,
-      jobData,
+      jobData as any,
     );
 
     // Apply advanced preference-based adjustments
@@ -726,7 +744,7 @@ export class EnhancedRecommendationService {
     }
 
     // Remote work preference boost (post-pandemic adjustment)
-    if (job.location.toLowerCase().includes('remote')) {
+    if (job.location.city?.toLowerCase().includes('remote')) {
       adjustedScore += 0.03;
     }
 
@@ -766,8 +784,22 @@ export class EnhancedRecommendationService {
           description: job.description,
           requirements: job.requirements as string[],
           type: job.type,
-          location: job.location,
-          salary: job.salary,
+          location: {
+            city:
+              typeof job.location === 'string'
+                ? job.location
+                : ((job.location as any).city as string),
+            state:
+              typeof job.location === 'string'
+                ? ''
+                : ((job.location as any).state as string),
+            country:
+              typeof job.location === 'string'
+                ? ''
+                : ((job.location as any).country as string),
+          },
+          salary: job.salary as JobSalary,
+          postedDate: job.createdAt,
           applicationDeadline: job.applicationDeadline,
           company: {
             name: job.company.name,
@@ -793,7 +825,7 @@ export class EnhancedRecommendationService {
           ),
           locationMatch: this.calculateAdvancedLocationMatch(
             userProfile.location,
-            jobData.location,
+            jobData.location.city as string,
           ),
           salaryMatch: this.calculateAdvancedSalaryMatch(userProfile, jobData),
           cultureMatch: this.calculateCultureMatch(
@@ -930,7 +962,7 @@ export class EnhancedRecommendationService {
       if (this.isRelevantExperience(exp, jobData)) {
         const months = this.calculateExperienceMonths(
           exp.startDate,
-          exp.endDate,
+          exp.endDate as Date | undefined,
         );
         const qualityMultiplier = this.calculateExperienceQuality(exp, jobData);
 
@@ -1027,10 +1059,8 @@ export class EnhancedRecommendationService {
     return matrix[str2.length][str1.length];
   }
 
-  private buildAdvancedCacheKey(userId: string, params: any): string {
-    const paramStr = JSON.stringify(params);
-    const hash = Buffer.from(paramStr).toString('base64');
-    return `advanced_recommendations:${userId}:${hash}`;
+  private buildAdvancedCacheKey(userId: string, filters?: any): string {
+    return `recommendations:${userId}:${JSON.stringify(filters || {})}`;
   }
 
   // Placeholder methods for complex calculations (would be implemented based on specific requirements)
@@ -1307,5 +1337,298 @@ export class EnhancedRecommendationService {
       0,
       (end.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30),
     );
+  }
+
+  private mapUserToProfile(user: any): UserProfile {
+    return {
+      id: user.id,
+      status: user.status || 'active',
+      skills:
+        user.skills?.map((skill: any) => ({
+          name: skill.name,
+          level: skill.level,
+        })) || [],
+      education:
+        user.education?.map((edu: any) => ({
+          degree: edu.degree,
+          field: edu.field,
+          institution: edu.institution,
+          graduationDate: edu.endDate || edu.graduationDate,
+        })) || [],
+      experiences:
+        user.experiences?.map((exp: any) => ({
+          title: exp.title,
+          company: exp.company,
+          startDate: exp.startDate,
+          endDate: exp.endDate || null,
+          skills: exp.skills || [],
+        })) || [],
+      preferences: {
+        industries: user.preferences?.industries || [],
+        jobTypes: user.preferences?.jobTypes || [],
+        locations: user.preferences?.locations || [],
+      },
+    };
+  }
+
+  private mapJobToJobData(job: any): JobData {
+    return {
+      id: job.id,
+      title: job.title,
+      description: job.description,
+      requirements: job.requirements || [],
+      type: job.type,
+      location: job.location,
+      salary:
+        job.salary && typeof job.salary === 'object'
+          ? {
+              min: Number(job.salary.min),
+              max: Number(job.salary.max),
+              currency: job.salary.currency || 'USD',
+            }
+          : undefined,
+      company: {
+        name: job.company?.name,
+        industry: job.company?.industry,
+        size: job.company?.size,
+      },
+      postedDate: job.createdAt || new Date(),
+      applicationDeadline: job.applicationDeadline || new Date(),
+      status: job.status || JobStatus.ACTIVE,
+    };
+  }
+
+  private async getUserProfile(userId: string): Promise<UserProfile> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        status: true,
+        skills: {
+          select: {
+            name: true,
+            endorsements: true,
+          },
+        },
+        studentEducations: {
+          select: {
+            degree: true,
+            major: true,
+            graduationYear: true,
+            university: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        experiences: {
+          select: {
+            title: true,
+            startDate: true,
+            endDate: true,
+            skills: true,
+            company: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        interests: true,
+        city: true,
+        state: true,
+        country: true,
+      },
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    return {
+      id: user.id,
+      status: user.status,
+      skills: user.skills.map((skill) => ({
+        name: skill.name,
+        level: String(skill.endorsements || 0),
+      })),
+      education: user.studentEducations.map((edu) => ({
+        degree: edu.degree || 'Unknown',
+        field: edu.major || 'Unknown',
+        institution: edu.university?.name || 'Unknown',
+        graduationDate: edu.graduationYear
+          ? new Date(edu.graduationYear, 5, 1) // Assuming June graduation
+          : new Date(),
+      })),
+      experiences: user.experiences.map((exp) => ({
+        title: exp.title,
+        company: exp.company?.name || 'Unknown',
+        startDate: exp.startDate,
+        endDate: exp.endDate || null,
+        skills: exp.skills || [],
+      })),
+      preferences: {
+        industries:
+          user.interests
+            ?.filter((i) => i.startsWith('industry:'))
+            .map((i) => i.replace('industry:', '')) || [],
+        jobTypes:
+          user.interests
+            ?.filter((i) => i.startsWith('jobType:'))
+            .map((i) => i.replace('jobType:', '')) || [],
+        locations: [user.city, user.state, user.country].filter(
+          (loc): loc is string => !!loc,
+        ),
+      },
+    };
+  }
+
+  private async getJobsData(): Promise<JobData[]> {
+    type JobWithCompany = {
+      id: string;
+      title: string;
+      description: string;
+      requirements: string[];
+      type: string;
+      jobType: JobType;
+      location: string;
+      salary: Record<string, unknown> | null;
+      createdAt: Date;
+      company: {
+        name: string;
+        industry: string | null;
+        size: string | null;
+      };
+    };
+
+    const jobs = (await this.prisma.job.findMany({
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        requirements: true,
+        type: true,
+        jobType: true,
+        location: true,
+        salary: true,
+        createdAt: true,
+        company: {
+          select: {
+            name: true,
+            industry: true,
+            size: true,
+          },
+        },
+      },
+      where: {
+        status: JobStatus.ACTIVE,
+        deletedAt: null,
+      },
+    })) as unknown as JobWithCompany[];
+
+    return jobs.map((job) => {
+      let salary: JobSalary | undefined;
+      if (job.salary && typeof job.salary === 'object') {
+        const salaryObj = job.salary;
+        if ('min' in salaryObj && 'max' in salaryObj) {
+          salary = {
+            min: Number(salaryObj.min || 0),
+            max: Number(salaryObj.max || 0),
+            currency: String(salaryObj.currency || 'USD'),
+          };
+        }
+      }
+
+      return {
+        id: job.id,
+        title: job.title,
+        description: job.description,
+        requirements: job.requirements || [],
+        type: job.type || job.jobType,
+        location: job.location as any,
+        salary,
+        company: {
+          name: job.company.name,
+          industry: job.company.industry || '',
+          size: job.company.size || '',
+        },
+        postedDate: job.createdAt,
+      } as unknown as JobData;
+    });
+  }
+
+  private async filterJobsByPreferences(
+    jobs: JobData[],
+    userProfile: UserProfile,
+  ): Promise<JobData[]> {
+    const { preferences } = userProfile;
+    if (!preferences) {
+      return jobs;
+    }
+
+    return jobs.filter((job) => {
+      // Filter by job type if preferences exist
+      if (
+        preferences.jobTypes?.length &&
+        !preferences.jobTypes.includes(job.type)
+      ) {
+        return false;
+      }
+
+      // Filter by industry if preferences exist
+      if (
+        preferences.industries?.length &&
+        job.company.industry &&
+        !preferences.industries.includes(job.company.industry)
+      ) {
+        return false;
+      }
+
+      // Filter by location if preferences exist
+      if (
+        preferences.locations?.length &&
+        !preferences.locations.some(
+          (loc) =>
+            job.location?.city?.toLowerCase().includes(loc.toLowerCase()) ||
+            job.location?.state?.toLowerCase().includes(loc.toLowerCase()) ||
+            job.location?.country?.toLowerCase().includes(loc.toLowerCase()),
+        )
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+  }
+
+  private async calculateLocationScore(
+    job: JobData,
+    userProfile: UserProfile,
+  ): Promise<number> {
+    const { preferences } = userProfile;
+    if (!preferences?.locations?.length) {
+      return 0.5; // Neutral score if no location preferences
+    }
+
+    const jobLocation = job.location?.city?.toLowerCase() || '';
+    const matchingLocation = preferences.locations.find((loc) =>
+      jobLocation.includes(loc.toLowerCase()),
+    );
+
+    return matchingLocation ? 1 : 0;
+  }
+
+  private async enhanceRecommendations(
+    recommendations: RecommendationResult[],
+    userProfile: UserProfile,
+  ): Promise<RecommendationResult[]> {
+    return recommendations.map((rec) => ({
+      ...rec,
+      matchDetails: {
+        ...rec.matchDetails,
+        // Add any additional match details here
+      },
+    }));
   }
 }

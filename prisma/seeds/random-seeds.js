@@ -18,7 +18,7 @@ const getRandomArrayElements = (array, count) => {
   return shuffled.slice(0, count);
 };
 
-async function main() {
+export async function main() {
   console.log('Starting database seeding...');
 
   // Clear existing data (optional - uncomment if needed)

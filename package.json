@@ -21,7 +21,14 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "seed": "ts-node prisma/seeds/admin.seed.ts",
     "seed:admin": "ts-node prisma/seeds/admin.seed.ts",
-    "db:seed": "npm run seed"
+    "db:seed": "npm run seed",
+    "ai:train": "ts-node src/ai/scripts/train-ai.ts",
+    "ai:quick-train": "ts-node src/ai/scripts/train-ai.ts --quick",
+    "ai:generate-seeds": "ts-node src/ai/scripts/generate-seeds.ts",
+    "ai:generate-seeds-quick": "ts-node src/ai/scripts/generate-seeds.ts --quick",
+    "ai:seed": "curl -X POST http://localhost:3000/ai/seed/generate -H 'Content-Type: application/json' -d '{}'",
+    "ai:seed-and-train": "curl -X POST http://localhost:3000/ai/seed/generate-and-train -H 'Content-Type: application/json' -d '{}'",
+    "ai:quick-setup": "curl -X POST http://localhost:3000/ai/seed/quick-setup -H 'Content-Type: application/json' -d '{}'"
   },
   "dependencies": {
     "@clerk/backend": "^2.0.0",
@@ -37,6 +44,8 @@
     "@nestjs/swagger": "^11.2.0",
     "@nestjs/websockets": "^11.1.3",
     "@prisma/client": "^6.9.0",
+    "@tensorflow/tfjs-node": "^4.22.0",
+    "@types/faker": "^6.6.8",
     "@types/multer": "^1.4.13",
     "@types/nodemailer": "^6.4.17",
     "@types/nodemailer-express-handlebars": "^4.0.5",

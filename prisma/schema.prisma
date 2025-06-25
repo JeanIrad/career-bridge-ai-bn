@@ -639,7 +639,7 @@ model Comment {
   updatedAt DateTime  @updatedAt
   post      Post      @relation(fields: [postId], references: [id])
   postId    String
-  user      User      @relation(fields: [userId], references: [id])
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
   deletedAt DateTime?
 }
@@ -1420,7 +1420,7 @@ model CampusEvent {
   partnershipId String?
   partnership   UniversityPartnership? @relation(fields: [partnershipId], references: [id])
   companyId     String
-  company       Company                @relation(fields: [companyId], references: [id])
+  company       Company                @relation(fields: [companyId], references: [id] , onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

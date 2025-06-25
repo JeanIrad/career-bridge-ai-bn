@@ -1,0 +1,29 @@
+{
+  "timestamp": "2025-06-25T10:27:01.758Z",
+  "metrics": {
+    "accuracy": 0,
+    "loss": 0.010473979637026787,
+    "validationAccuracy": 0,
+    "validationLoss": 0.005132545251399279,
+    "trainingTime": 3279,
+    "dataPoints": 154,
+    "epochs": 50
+  },
+  "config": {
+    "epochs": 50,
+    "batchSize": 32,
+    "learningRate": 0.001,
+    "validationSplit": 0.2,
+    "dropoutRate": 0.3,
+    "hiddenUnits": [
+      128,
+      64,
+      32
+    ]
+  },
+  "performance": {
+    "training_time_minutes": "0.05",
+    "data_points": 154,
+    "final_loss": "0.0105"
+  }
+}

@@ -16,6 +16,7 @@ import { EnhancedRecommendationController } from './enhanced-recommendation.cont
 import { LearningRecommendationController } from './learning-recommendation.controller';
 import { CareerPathController } from './career-path.controller';
 import { MarketIntelligenceController } from './market-intelligence.controller';
+import { PrismaService } from '../../prisma/prisma.service';
 
 @Module({
   imports: [PrismaModule, AiModule, CacheModule],
@@ -27,6 +28,7 @@ import { MarketIntelligenceController } from './market-intelligence.controller';
     MarketIntelligenceController,
   ],
   providers: [
+    PrismaService,
     RecommendationService,
     EnhancedRecommendationService,
     LearningRecommendationService,

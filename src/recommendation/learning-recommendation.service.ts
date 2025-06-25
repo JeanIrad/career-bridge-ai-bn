@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PrismaService } from 'prisma/prisma.service';
 import { CacheService } from '../cache/cache.service';
-import { UserProfile } from '../ai/ai.service';
+import { UserProfile } from '../ai/types';
 
 export interface SkillGap {
   skill: string;
@@ -312,6 +312,7 @@ export class LearningRecommendationService {
 
     return {
       id: user.id,
+      status: user.status,
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,

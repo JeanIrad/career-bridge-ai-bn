@@ -1,11 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PrismaService } from 'prisma/prisma.service';
 import {
   AiService,
   UserProfile,
   JobData,
   RecommendationResult,
 } from '../ai/ai.service';
+import {
+  UserProfile as TypesUserProfile,
+  JobData as TypesJobData,
+  RecommendationResult as TypesRecommendationResult,
+} from '../ai/types';
 import { CacheService } from '../cache/cache.service';
 
 export interface RecommendationFilters {
@@ -371,6 +376,7 @@ export class RecommendationService {
 
     return {
       id: user.id,
+      status: user.status,
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
@@ -665,7 +671,10 @@ export class RecommendationService {
     if (relevantExperiences.length === 0) return 0.3;
 
     const totalExperience = relevantExperiences.reduce((total, exp) => {
-      const months = this.calculateExperienceMonths(exp.startDate, exp.endDate);
+      const months = this.calculateExperienceMonths(
+        exp.startDate,
+        exp?.endDate ?? new Date(),
+      );
       return total + months;
     }, 0);
 
@@ -701,7 +710,7 @@ export class RecommendationService {
     userLocation: UserProfile['location'],
     jobLocation: string,
   ): number {
-    if (!userLocation.city && !userLocation.state && !userLocation.country)
+    if (!userLocation?.city && !userLocation?.state && !userLocation?.country)
       return 0.5;
     if (!jobLocation) return 0.5;
 
@@ -711,16 +720,19 @@ export class RecommendationService {
     if (jobLoc.includes('remote') || jobLoc.includes('anywhere')) return 1.0;
 
     // Check city match
-    if (userLocation.city && jobLoc.includes(userLocation.city.toLowerCase()))
+    if (userLocation?.city && jobLoc.includes(userLocation.city.toLowerCase()))
       return 1.0;
 
     // Check state match
-    if (userLocation.state && jobLoc.includes(userLocation.state.toLowerCase()))
+    if (
+      userLocation?.state &&
+      jobLoc.includes(userLocation.state.toLowerCase())
+    )
       return 0.8;
 
     // Check country match
     if (
-      userLocation.country &&
+      userLocation?.country &&
       jobLoc.includes(userLocation.country.toLowerCase())
     )
       return 0.6;

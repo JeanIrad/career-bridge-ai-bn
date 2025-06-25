@@ -606,8 +606,12 @@ async function createUniversities() {
   const universities: any[] = [];
 
   for (const uniData of UNIVERSITIES) {
-    const university = await prisma.university.create({
-      data: {
+    const university = await prisma.university.upsert({
+      where: {
+        name: uniData.name,
+      },
+      update: {},
+      create: {
         name: uniData.name,
         shortName: uniData.name
           .split(' ')
@@ -950,7 +954,7 @@ async function createNotifications(users: any[]) {
   console.log('Created 200 notifications');
 }
 
-async function main() {
+export async function main() {
   try {
     console.log('🌱 Starting seed process...');
 

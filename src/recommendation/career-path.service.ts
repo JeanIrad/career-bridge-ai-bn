@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CacheService } from '../cache/cache.service';
-import { UserProfile } from '../ai/ai.service';
+import { UserProfile } from '../ai/types';
 
 export interface CareerPath {
   id: string;
@@ -365,6 +365,7 @@ export class CareerPathService {
 
     return {
       id: user.id,
+      status: user.status,
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
@@ -992,7 +993,7 @@ export class CareerPathService {
     const experienceMultiplier =
       this.calculateTotalExperienceYears(userProfile.experiences) * 0.1;
     const locationMultiplier = this.getLocationSalaryMultiplier(
-      userProfile.location.city || '',
+      userProfile.location?.city || '',
     );
 
     return Math.round(
