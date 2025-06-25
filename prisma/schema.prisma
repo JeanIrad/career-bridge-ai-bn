@@ -163,6 +163,9 @@ model User {
   createdPrograms      MentorshipProgram[]
   programEnrollments   ProgramEnrollment[]
 
+  // Achievement relations
+  userAchievements     UserAchievement[]
+
   @@map("users")
 }
 
@@ -2281,4 +2284,87 @@ enum CompensationType {
   UNPAID
   STIPEND
   ACADEMIC_CREDIT
+}
+
+// Achievements System Models
+model Achievement {
+  id          String @id @default(uuid())
+  title       String
+  description String
+  category    AchievementCategory
+  icon        String // Icon name or emoji
+  points      Int    @default(0)
+  rarity      AchievementRarity @default(COMMON)
+  
+  // Requirements and conditions
+  requirement String? // Human-readable requirement description
+  conditions  Json?   // Structured conditions for automatic checking
+  
+  // Metadata
+  isActive    Boolean @default(true)
+  isHidden    Boolean @default(false) // Hidden achievements (surprises)
+  order       Int     @default(0)     // Display order within category
+  
+  // Tracking
+  totalEarned Int @default(0) // How many users have earned this
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  userAchievements UserAchievement[]
+  
+  @@index([category])
+  @@index([rarity])
+  @@index([isActive])
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String @id @default(uuid())
+  userId        String
+  achievementId String
+  
+  // Progress tracking
+  progress      Int     @default(0)   // Progress percentage (0-100)
+  isEarned      Boolean @default(false)
+  earnedAt      DateTime?
+  
+  // Metadata
+  metadata      Json?   // Additional data for tracking progress
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@index([achievementId])
+  @@index([isEarned])
+  @@map("user_achievements")
+}
+
+// Achievement System Enums
+enum AchievementCategory {
+  PROFILE_COMPLETION
+  JOB_APPLICATIONS
+  NETWORKING
+  SKILL_DEVELOPMENT
+  EVENT_PARTICIPATION
+  MENTORSHIP
+  COMMUNITY_ENGAGEMENT
+  CAREER_MILESTONES
+  LEARNING
+  SPECIAL_EVENTS
+}
+
+enum AchievementRarity {
+  COMMON
+  UNCOMMON
+  RARE
+  EPIC
+  LEGENDARY
 }

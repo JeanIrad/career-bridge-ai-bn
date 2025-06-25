@@ -22,6 +22,7 @@ import { ApplicationsModule } from './applications/applications.module';
 import { EventsModule } from './events/events.module';
 import { MentorshipModule } from './mentorship/mentorship.module';
 import { InternshipsModule } from './internships/internships.module';
+import { AchievementsModule } from './achievements/achievements.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { InternshipsModule } from './internships/internships.module';
     EventsModule, // Comprehensive career events system
     MentorshipModule, // Comprehensive mentorship system
     InternshipsModule, // Comprehensive internship system
+    AchievementsModule, // Achievement system
   ],
   controllers: [AppController, RecommendationController],
   providers: [AppService],

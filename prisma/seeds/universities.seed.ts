@@ -362,12 +362,23 @@ export async function seedUniversities() {
 
   try {
     // Clear existing universities
-    await prisma.university.deleteMany({});
+    // await prisma.university.deleteMany({});
 
     // Create universities
     for (const university of universities) {
-      await prisma.university.create({
-        data: university,
+      // await prisma.university.create({
+      //   data: university,
+      // });
+      await prisma.university.upsert({
+        where: {
+          name: university.name,
+        },
+        update: {
+          ...university,
+          isActive: true,
+          isVerified: true,
+        },
+        create: university,
       });
       console.log(`✅ Created university: ${university.name}`);
     }
